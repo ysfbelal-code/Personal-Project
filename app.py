@@ -438,6 +438,29 @@ def screen_onboard():
                         st.session_state.ob_picked = picked
                         st.rerun()
                     st.markdown('</div>', unsafe_allow_html=True)
+            # JS reinforcement for subject button colours
+            st.markdown("""
+            <script>
+            (function(){
+                function style(){
+                    document.querySelectorAll('.sub-sel button,.sub-unsel button').forEach(function(btn){
+                        var p=btn.closest('.sub-sel,.sub-unsel');
+                        if(!p)return;
+                        if(p.classList.contains('sub-sel')){
+                            btn.style.background='#0B2222';btn.style.color='#3BBFAF';
+                            btn.style.border='1.5px solid #3BBFAF';
+                            btn.style.boxShadow='0 0 10px rgba(59,191,175,0.15)';
+                        }else{
+                            btn.style.background='#07070D';btn.style.color='#484860';
+                            btn.style.border='1.5px solid #1C1C2E';btn.style.boxShadow='none';
+                        }
+                    });
+                }
+                style();setTimeout(style,120);setTimeout(style,600);
+                new MutationObserver(style).observe(document.body,{childList:true,subtree:true});
+            })();
+            </script>""", unsafe_allow_html=True)
+
             st.markdown("<br/>", unsafe_allow_html=True)
             c1, c2 = st.columns(2)
             with c1:
