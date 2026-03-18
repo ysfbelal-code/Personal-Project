@@ -6,7 +6,8 @@ import streamlit as st
 import base64
 from groq import Groq
 from PIL import Image
-import io, time, random
+import io, time, random, json
+import streamlit.components.v1 as components
 
 # ── Page config ───────────────────────────────────────────────────────────────
 st.set_page_config(
@@ -81,57 +82,188 @@ def inject_css():
     st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;900&display=swap');
-    html,body,[class*="css"],.stApp{font-family:'Cambria Math',Cambria,serif !important;background:#0E0E0E !important;color:#ECECEA !important;}
-    h1,h2,h3,h4,h5,h6,p,label,button,span,div{font-family:'Cambria Math',Cambria,serif !important;}
+
+    /* ── Base ── */
+    html,body,[class*="css"],.stApp{
+        font-family:'Cambria Math',Cambria,serif !important;
+        background:#080808 !important;color:#ECECEA !important;
+    }
+    h1,h2,h3,h4,h5,h6,p,label,button,span{
+        font-family:'Cambria Math',Cambria,serif !important;
+    }
     #MainMenu,footer,header{visibility:hidden;}
     .block-container{padding-top:2rem;padding-bottom:2rem;max-width:920px;}
-    /* Inputs */
-    .stTextInput>div>div>input,.stTextArea textarea{background:#1A1A19 !important;color:#ECECEA !important;border:1.5px solid #2D2D2B !important;border-radius:9px !important;}
-    .stSelectbox>div>div{background:#1A1A19 !important;border:1.5px solid #2D2D2B !important;border-radius:9px !important;}
-    .stSelectbox>div>div>div{color:#ECECEA !important;}
-    div[data-testid="stFileUploadDropzone"]{background:#1A1A19 !important;border:2px dashed #2D2D2B !important;border-radius:11px !important;}
-    div[data-testid="stFileUploadDropzone"] p,div[data-testid="stFileUploadDropzone"] span{color:#8A8A87 !important;}
-    /* Expander */
-    .streamlit-expanderHeader{background:#1A1A19 !important;color:#ECECEA !important;border-radius:9px !important;border:1px solid #2D2D2B !important;}
-    .streamlit-expanderContent{background:#1A1A19 !important;border:1px solid #2D2D2B !important;border-top:none !important;color:#ECECEA !important;}
-    /* Slider */
+
+    /* ── Inputs: black idle, cyan on focus ── */
+    .stTextInput>div>div>input,.stTextArea textarea{
+        background:#030305 !important;color:#E2E2F0 !important;
+        border:1.5px solid #18182A !important;border-radius:9px !important;
+        transition:border-color 0.25s,box-shadow 0.25s,background 0.25s !important;
+    }
+    .stTextInput>div>div>input:focus,.stTextArea textarea:focus{
+        background:#041414 !important;border-color:#3BBFAF !important;
+        box-shadow:0 0 0 3px #3BBFAF22,0 0 14px #3BBFAF15 !important;
+    }
+    .stSelectbox>div>div{
+        background:#030305 !important;border:1.5px solid #18182A !important;
+        border-radius:9px !important;transition:border-color 0.25s !important;
+    }
+    .stSelectbox>div>div:focus-within{
+        border-color:#3BBFAF !important;box-shadow:0 0 0 3px #3BBFAF22 !important;
+    }
+    .stSelectbox>div>div>div{color:#E2E2F0 !important;}
+    div[data-testid="stFileUploadDropzone"]{
+        background:#030305 !important;border:2px dashed #18182A !important;
+        border-radius:11px !important;transition:all 0.3s ease !important;
+    }
+    div[data-testid="stFileUploadDropzone"]:hover{
+        border-color:#3BBFAF !important;background:#041414 !important;
+    }
+    div[data-testid="stFileUploadDropzone"] p,
+    div[data-testid="stFileUploadDropzone"] span{color:#505050 !important;}
+
+    /* ── Expander ── */
+    .streamlit-expanderHeader{
+        background:#141414 !important;color:#ECECEA !important;
+        border-radius:9px !important;border:1px solid #222 !important;
+    }
+    .streamlit-expanderContent{
+        background:#141414 !important;border:1px solid #222 !important;
+        border-top:none !important;color:#ECECEA !important;
+    }
+
+    /* ── Slider ── */
     .stSlider>div{color:#ECECEA !important;}
-    /* Primary button */
-    .stButton>button{background:#3BBFAF !important;color:#fff !important;border:none !important;border-radius:10px !important;font-weight:700 !important;transition:all .2s !important;}
-    .stButton>button:hover{background:#33ADA0 !important;transform:translateY(-1px);}
-    .stButton>button:active{transform:scale(.98);}
-    /* Subject buttons - black bg, cyan when selected */
-    .sub-unsel .stButton>button{background:#111110 !important;color:#8A8A87 !important;border:1.5px solid #2D2D2B !important;}
-    .sub-unsel .stButton>button:hover{background:#162422 !important;color:#3BBFAF !important;border-color:#3BBFAF !important;}
-    .sub-sel .stButton>button{background:#162422 !important;color:#3BBFAF !important;border:1.5px solid #3BBFAF !important;}
-    /* Cards */
-    .elixir-card{background:#1A1A19;border-radius:13px;border:1px solid #2D2D2B;padding:18px;margin-bottom:12px;color:#ECECEA;animation:fadeUp .4s ease;}
-    /* Tip */
-    .tip-box{background:#162422;border-left:4px solid #3BBFAF;border-radius:0 10px 10px 0;padding:14px 16px;font-size:14px;line-height:1.7;color:#ECECEA;animation:fadeUp .4s ease;}
-    /* Space card */
-    .space-card{background:#1A1A19;border-radius:13px;border:1px solid #2D2D2B;padding:16px;color:#ECECEA;animation:fadeUp .35s ease;}
-    .space-card:hover{box-shadow:0 4px 14px rgba(0,0,0,.5);border-color:#3BBFAF;}
-    /* Analysis */
-    .analysis-box{background:#1A1A19;border-radius:11px;padding:20px;font-size:14px;line-height:1.8;border:1px solid #2D2D2B;color:#ECECEA;animation:fadeUp .4s ease;}
-    /* Hero */
-    .hero-title{font-size:36px;font-weight:900;text-align:center;letter-spacing:-.5px;line-height:1.15;color:#ECECEA;margin-bottom:10px;animation:fadeUp .5s ease;}
-    .hero-sub{font-size:15px;text-align:center;color:#8A8A87;margin-bottom:36px;line-height:1.65;animation:fadeUp .55s ease;}
-    .logo-center{display:flex;justify-content:center;margin-bottom:16px;}
-    .elixir-divider{border:none;border-top:1px solid #2D2D2B;margin:16px 0;}
-    /* Progress */
-    .stProgress>div>div>div{background:#3BBFAF !important;}
-    .stProgress>div>div{background:#2D2D2B !important;border-radius:4px;}
+
+    /* ── PRIMARY button — CYAN ── */
+    .stButton>button{
+        background:linear-gradient(135deg,#3BBFAF 0%,#2AA99B 100%) !important;
+        color:#fff !important;border:none !important;border-radius:10px !important;
+        font-weight:700 !important;letter-spacing:.3px !important;
+        box-shadow:0 2px 12px rgba(59,191,175,.28) !important;
+        transition:all .25s cubic-bezier(.22,.61,.36,1) !important;
+    }
+    .stButton>button:hover{
+        background:linear-gradient(135deg,#4ECFC0 0%,#33ADA0 100%) !important;
+        transform:translateY(-2px) !important;
+        box-shadow:0 7px 24px rgba(59,191,175,.45) !important;
+    }
+    .stButton>button:active{transform:scale(.97) !important;}
+
+    /* ── General card — neutral dark ── */
+    .elixir-card{
+        background:#111111;border-radius:14px;border:1px solid #1C1C1C;
+        padding:18px;margin-bottom:12px;color:#ECECEA;
+        animation:fadeUp .45s cubic-bezier(.22,.61,.36,1) both;
+    }
+
+    /* ── Tip box — VIOLET (different from cyan buttons) ── */
+    .tip-box{
+        background:#0E0A1E;
+        border-left:4px solid #8B5CF6;
+        border-radius:0 12px 12px 0;
+        padding:14px 18px;font-size:13.5px;line-height:1.76;
+        color:#C4B5FD;
+        animation:slideRight .42s cubic-bezier(.22,.61,.36,1) both;
+    }
+
+    /* ── Upload-ready box — AMBER (distinct from violet tip & cyan buttons) ── */
+    .upload-ready{
+        background:#131000;
+        border-left:4px solid #F59E0B;
+        border-radius:0 12px 12px 0;
+        padding:12px 18px;font-size:13px;line-height:1.6;
+        color:#FDE68A;
+        animation:slideRight .35s ease both;
+    }
+
+    /* ── Space card — neutral dark, accent from space colour ── */
+    .space-card{
+        background:#111111;border-radius:14px;border:1px solid #1C1C1C;
+        padding:16px;color:#ECECEA;
+        animation:slideUp .4s cubic-bezier(.22,.61,.36,1) both;
+        transition:box-shadow .25s,border-color .2s,transform .2s;
+    }
+    .space-card:hover{
+        box-shadow:0 8px 28px rgba(0,0,0,.7);
+        transform:translateY(-3px);
+    }
+
+    /* ── Analysis output — INDIGO (different from violet & cyan & amber) ── */
+    .analysis-box{
+        background:#0B0B1C;border-radius:12px;padding:22px;
+        font-size:14px;line-height:1.85;
+        border-left:4px solid #6366F1;
+        border-top:1px solid #18183A;border-right:1px solid #18183A;
+        border-bottom:1px solid #18183A;
+        color:#E0E0FF;
+        animation:zoomIn .45s cubic-bezier(.22,.61,.36,1) both;
+    }
+
+    /* ── Study plan card — AMBER ── */
+    .plan-card{
+        background:#121000;border-radius:14px;
+        border-left:4px solid #F59E0B;
+        border-top:1px solid #281F00;border-right:1px solid #281F00;
+        border-bottom:1px solid #281F00;
+        padding:18px;
+        animation:fadeUp .4s ease both;
+    }
+    .plan-card>div{color:#FDE68A !important;}
+
+    /* ── Hero ── */
+    .hero-title{
+        font-size:38px;font-weight:900;text-align:center;
+        letter-spacing:-.6px;line-height:1.15;color:#ECECEA;
+        margin-bottom:12px;animation:fadeUp .5s ease both;
+    }
+    .hero-sub{
+        font-size:15px;text-align:center;color:#606060;
+        margin-bottom:38px;line-height:1.65;
+        animation:fadeUp .65s ease both;
+    }
+    .logo-center{display:flex;justify-content:center;margin-bottom:18px;}
+    .elixir-divider{border:none;border-top:1px solid #181818;margin:16px 0;}
+
+    /* ── Progress bar — AMBER (not cyan) ── */
+    .stProgress>div>div>div{
+        background:linear-gradient(90deg,#F59E0B,#FCD34D) !important;
+    }
+    .stProgress>div>div{background:#1A1A1A !important;border-radius:4px;}
     .stSpinner>div{border-top-color:#3BBFAF !important;}
-    /* Scrollbar */
-    ::-webkit-scrollbar{width:5px;}::-webkit-scrollbar-thumb{background:#2D2D2B;border-radius:10px;}
-    /* Markdown */
-    .stMarkdown p,.stMarkdown li{color:#ECECEA !important;}
-    /* Animations */
-    @keyframes fadeUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+
+    /* ── Scrollbar ── */
+    ::-webkit-scrollbar{width:5px;}
+    ::-webkit-scrollbar-thumb{background:#222;border-radius:10px;}
+
+    /* ── Markdown ── */
+    .stMarkdown p,.stMarkdown li,.stMarkdown h1,
+    .stMarkdown h2,.stMarkdown h3{color:#ECECEA !important;}
+
+    /* ── Animations ── */
+    @keyframes fadeUp{
+        from{opacity:0;transform:translateY(18px)}
+        to{opacity:1;transform:none}
+    }
+    @keyframes slideRight{
+        from{opacity:0;transform:translateX(-16px)}
+        to{opacity:1;transform:none}
+    }
+    @keyframes slideUp{
+        from{opacity:0;transform:translateY(12px)}
+        to{opacity:1;transform:none}
+    }
+    @keyframes zoomIn{
+        from{opacity:0;transform:scale(.95)}
+        to{opacity:1;transform:scale(1)}
+    }
+    @keyframes pulse{
+        0%,100%{opacity:1}50%{opacity:.5}
+    }
     </style>
     """, unsafe_allow_html=True)
 
-# ── Session state initialisation ──────────────────────────────────────────────
+
 def init_state():
     import hashlib as _hl
     _admin = {"id":ADMIN_ID,"email":ADMIN_EMAIL,"username":ADMIN_USERNAME,"pw_hash":"","rec":"","is_admin":True}
@@ -172,7 +304,7 @@ def subStr(profile):
     ) or "General"
 
 def ai_analyze_image(image_bytes: bytes, profile: dict) -> str:
-    """Send an image to Groq vision model and return study notes."""
+    """Analyse an image with Groq vision — formulas, worked examples, diagrams."""
     client = get_groq()
     b64 = base64.b64encode(image_bytes).decode()
     subs = subStr(profile)
@@ -185,7 +317,7 @@ def ai_analyze_image(image_bytes: bytes, profile: dict) -> str:
                  "image_url": {"url": f"data:image/jpeg;base64,{b64}"}},
                 {"type": "text",
                  "text": (
-                    f"You are Elixir AI, expert tutor for {profile['grade']} "
+                    f"You are Elixir AI, an expert tutor for {profile['grade']} "
                     f"{profile['curriculum']} students in {profile['region']}. "
                     f"Subjects: {subs}.\n\n"
                     "You are generating STUDY NOTES ONLY. "
@@ -216,16 +348,17 @@ def ai_analyze_image(image_bytes: bytes, profile: dict) -> str:
                  )}
             ]
         }],
-        max_tokens=1024,
+        max_tokens=2048,
     )
     return resp.choices[0].message.content or ""
 
+
 def ai_analyze_text(text: str, profile: dict) -> str:
-    """Send text content to Groq and return study notes."""
+    """Analyse text content — formulas, worked examples, diagrams."""
     client = get_groq()
     subs = subStr(profile)
     clean = "".join(c for c in text if ord(c) >= 32 or c in "\n\t")
-    trunc = clean[:6000] + ("\n\n[truncated]" if len(clean) > 6000 else "")
+    trunc = clean[:6000] + ("\n\n[content truncated]" if len(clean) > 6000 else "")
     resp = client.chat.completions.create(
         model="llama-3.3-70b-versatile",
         messages=[
@@ -233,7 +366,7 @@ def ai_analyze_text(text: str, profile: dict) -> str:
              "content": (
                 f"You are Elixir AI, expert tutor for {profile['grade']} "
                 f"{profile['curriculum']} in {profile['region']}. "
-                f"Subjects: {subs}. Be clear and encouraging."
+                f"Subjects: {subs}. Be precise and thorough."
              )},
             {"role": "user",
              "content": (
@@ -260,9 +393,10 @@ def ai_analyze_text(text: str, profile: dict) -> str:
                 f"---\n\n{trunc}"
              )}
         ],
-        max_tokens=1024,
+        max_tokens=2048,
     )
     return resp.choices[0].message.content or ""
+
 
 def ai_study_plan(profile: dict) -> str:
     """Generate a personalised weekly study plan."""
@@ -271,19 +405,10 @@ def ai_study_plan(profile: dict) -> str:
     resp = client.chat.completions.create(
         model="llama-3.3-70b-versatile",
         messages=[{"role": "user", "content": (
-            f"Generate a weekly study plan for a {profile['grade']} {profile['curriculum']} "
-            f"student in {profile['region']}. Subjects: {subs}.\n\n"
-            "Rules:\n"
-            "- Assign one or two subjects per day (Mon–Sun)\n"
-            "- For each day, suggest a Pomodoro format e.g. 25/5 x 4 or 50/10 x 3\n"
-            "- Do NOT include any times of day — the student decides when to study\n"
-            "- Do NOT add motivational filler or introductions, just the plan\n"
-            "- Use this exact format for each day:\n"
-            "**Monday**: Revise [Subject] — [X/Y Pomodoro x N]\n"
-            "**Tuesday**: Revise [Subject] — [X/Y Pomodoro x N]\n"
-            "...and so on through Sunday."
-            "If the user's region is such where the week starts on Sunday\n"
-            "The study plan should adapt to it."
+            f"Weekly study plan for {profile['grade']} {profile['curriculum']} "
+            f"student in {profile['region']}. Subjects: {subs}.\n"
+            "Include Mon&#8211;Sun with daily subject slots, specific techniques, "
+            "Pomodoro breaks, weekend review. Use bold day headers."
         )}],
         max_tokens=1024,
     )
@@ -464,43 +589,86 @@ def screen_onboard():
 
         elif step == 1:
             st.markdown('<h3 style="font-weight:900">Which subjects do you study?</h3>', unsafe_allow_html=True)
-            st.markdown('<p style="color:#6E6E6B;font-size:13px;margin-bottom:16px">Select all that apply.</p>', unsafe_allow_html=True)
+            st.markdown('<p style="color:#6E6E6B;font-size:13px;margin-bottom:10px">Select all that apply.</p>', unsafe_allow_html=True)
             picked = list(st.session_state.ob_picked)
-            cols = st.columns(2)
-            for i, (sid, name, icon) in enumerate(SUBJECTS):
-                is_sel = sid in picked
-                with cols[i % 2]:
-                    chk = "\u2713 " if is_sel else ""
-                    label = f"{chk}{icon}  {name}"
-                    cls = "sub-sel" if is_sel else "sub-unsel"
-                    st.markdown(f'<div class="{cls}">', unsafe_allow_html=True)
-                    if st.button(label, key=f"sub_{sid}", use_container_width=True):
-                        if is_sel: picked.remove(sid)
-                        else:      picked.append(sid)
-                        st.session_state.ob_picked = picked
-                        st.rerun()
-                    st.markdown('</div>', unsafe_allow_html=True)
+            subjects_json = json.dumps([[sid,name,icon] for sid,name,icon in SUBJECTS])
+            picked_json   = json.dumps(picked)
+            n_rows = (len(SUBJECTS)+1)//2
+            grid_html = f"""<!DOCTYPE html><html><head>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@700&display=swap" rel="stylesheet">
+<style>
+*{{box-sizing:border-box;margin:0;padding:0}}
+body{{background:transparent;font-family:'Cambria Math',Cambria,serif}}
+.grid{{display:grid;grid-template-columns:1fr 1fr;gap:7px;padding:2px}}
+.btn{{
+  display:flex;align-items:center;gap:8px;
+  padding:9px 11px;border-radius:10px;cursor:pointer;
+  border:1.5px solid #2D2D2B;background:#111110;
+  color:#8A8A87;font-family:inherit;font-weight:700;font-size:12.5px;
+  width:100%;text-align:left;
+  transition:background .3s ease,color .3s ease,border-color .3s ease,
+             box-shadow .3s ease,transform .15s ease;
+}}
+.btn:hover{{background:#1A1A19;color:#ECECEA;border-color:#3A3A38;transform:translateY(-1px)}}
+.btn.sel{{background:#0B201D;color:#3BBFAF;border-color:#3BBFAF;box-shadow:0 0 12px rgba(59,191,175,.25)}}
+.btn.sel:hover{{background:#0F2A26;box-shadow:0 0 20px rgba(59,191,175,.38);transform:translateY(-1px)}}
+.icon{{font-size:14px;min-width:18px;text-align:center;font-family:monospace}}
+.chk{{margin-left:auto;color:#3BBFAF;font-size:13px;animation:pop .2s ease}}
+@keyframes pop{{from{{transform:scale(0)}}to{{transform:scale(1)}}}}
+</style></head><body>
+<div class="grid" id="g"></div>
+<script>
+const S={subjects_json};
+let P={picked_json};
+function render(){{
+  const g=document.getElementById('g');g.innerHTML='';
+  S.forEach(([id,name,icon])=>{{
+    const sel=P.includes(id);
+    const b=document.createElement('button');
+    b.className='btn'+(sel?' sel':'');
+    b.innerHTML=`<span class="icon">${{icon}}</span>${{name}}${{sel?'<span class="chk">✓</span>':''}}\`;
+    b.onclick=()=>{{
+      const i=P.indexOf(id);
+      if(i>=0)P.splice(i,1);else P.push(id);
+      render();
+      Streamlit.setComponentValue(JSON.stringify(P));
+    }};
+    g.appendChild(b);
+  }});
+}}
+render();
+Streamlit.setComponentReady();
+</script></body></html>"""
+            result = components.html(grid_html, height=n_rows*52+16, scrolling=False)
+            if result is not None:
+                new_p = json.loads(result)
+                if new_p != st.session_state.ob_picked:
+                    st.session_state.ob_picked = new_p
+                    st.rerun()
             # JS reinforcement for subject button colours
-            st.markdown("""
+            selected_names = [name for sid,name,icon in SUBJECTS if sid in picked]
+            st.markdown(f"""
             <script>
-            (function(){
-                function style(){
-                    document.querySelectorAll('.sub-sel button,.sub-unsel button').forEach(function(btn){
+            (function(){{
+                var sel={str([f"{icon}  {name}" for sid,name,icon in [(s[0],s[1],s[2]) for s in [(sid,name,icon) for sid,name,icon in SUBJECTS]]]).replace("'",'"')};
+                function style(){{
+                    document.querySelectorAll('.sub-sel button,.sub-unsel button').forEach(function(btn){{
                         var p=btn.closest('.sub-sel,.sub-unsel');
                         if(!p)return;
-                        if(p.classList.contains('sub-sel')){
+                        if(p.classList.contains('sub-sel')){{
                             btn.style.background='#0B2222';btn.style.color='#3BBFAF';
                             btn.style.border='1.5px solid #3BBFAF';
                             btn.style.boxShadow='0 0 10px rgba(59,191,175,0.15)';
-                        }else{
+                        }}else{{
                             btn.style.background='#07070D';btn.style.color='#484860';
-                            btn.style.border='1.5px solid #1C1C2E';btn.style.boxShadow='none';
-                        }
-                    });
-                }
+                            btn.style.border='1.5px solid #1C1C2E';
+                            btn.style.boxShadow='none';
+                        }}
+                    }});
+                }}
                 style();setTimeout(style,120);setTimeout(style,600);
-                new MutationObserver(style).observe(document.body,{childList:true,subtree:true});
-            })();
+                new MutationObserver(style).observe(document.body,{{childList:true,subtree:true}});
+            }})();
             </script>""", unsafe_allow_html=True)
 
             st.markdown("<br/>", unsafe_allow_html=True)
@@ -584,7 +752,7 @@ def screen_dashboard():
 
         if not spaces:
             st.markdown(
-                '<div style="border:2px dashed #E6E6E3;border-radius:13px;padding:30px;text-align:center">' +
+                '<div style="border:2px dashed #252525;border-radius:13px;padding:30px;text-align:center">' +
                 '<p style="color:#6E6E6B;font-size:14px">No spaces yet. Create your first study space!</p></div>',
                 unsafe_allow_html=True
             )
@@ -609,7 +777,7 @@ def screen_dashboard():
         # Study plan card
         st.markdown("<br/>", unsafe_allow_html=True)
         st.markdown(
-            '<div class="elixir-card" style="background:#EAF8F6;border:1px solid #3BBFAF44">' +
+            '<div class="plan-card">' +
             '<div style="font-weight:800;font-size:15px;margin-bottom:4px">Weekly Study Plan</div>' +
             '<div style="font-size:12px;color:#6E6E6B">AI-generated, personalised to your subjects.</div></div>',
             unsafe_allow_html=True
@@ -690,12 +858,11 @@ def screen_new_space():
 
 
 def screen_space():
-    """Space view &#8212; upload and analyse files."""
+    """Space view — auto-analyse on upload, show notes immediately."""
     space   = st.session_state.cur_space
     profile = st.session_state.profile
-    notes   = st.session_state.notes.get(space["id"], [])
 
-    # Header
+    # ── Header ──────────────────────────────────────────────────────────────
     h1, h2 = st.columns([1, 8])
     with h1:
         if st.button("←"): go("dashboard")
@@ -704,72 +871,122 @@ def screen_space():
             f'<div style="display:flex;align-items:center;gap:9px;padding-top:4px">' +
             f'<div style="width:28px;height:28px;border-radius:7px;background:{space["color"]}26;' +
             f'display:flex;align-items:center;justify-content:center;font-size:15px;color:{space["color"]}">{space["icon"]}</div>' +
-            f'<span style="font-weight:900;font-size:15px">{space["name"]}</span></div>',
+            f'<span style="font-weight:900;font-size:15px;color:#F0F0FF">{space["name"]}</span>' +
+            f'<span style="font-size:11px;color:#5050708;margin-left:6px">{space["subject"]}</span></div>',
             unsafe_allow_html=True
         )
     st.markdown('<hr class="elixir-divider"/>', unsafe_allow_html=True)
 
-    # File uploader
-    st.markdown('<p style="font-weight:800;font-size:14px;margin-bottom:8px">Upload notes or a file</p>', unsafe_allow_html=True)
+    # ── File uploader — analysis triggers automatically on upload ────────────
+    # Uploader key resets after each successful analysis so user can upload again
+    uk = st.session_state.get(f'uk_{space["id"]}', 0)
+
+    st.markdown(
+        '<p style="font-weight:800;font-size:14px;margin-bottom:4px;color:#E2E2F0">' +
+        'Upload notes or a file</p>' +
+        '<p style="font-size:12px;color:#5050A0;margin-bottom:8px">' +
+        'Images, .txt, .md, .py, .csv and more — analysis starts automatically</p>',
+        unsafe_allow_html=True
+    )
+
     uploaded = st.file_uploader(
-        "Upload a file",
-        type=["png","jpg","jpeg","gif","webp","txt","md","csv","json","py","js","ts","java","cpp","c","xml","yaml","yml","tex","log"],
+        "Upload",
+        type=["png","jpg","jpeg","gif","webp","bmp",
+              "txt","md","csv","json","py","js","ts","java",
+              "cpp","c","xml","yaml","yml","tex","log"],
+        key=f"uploader_{space['id']}_{uk}",
         label_visibility="collapsed",
-        help="Images, .txt, .md, .py, .csv and more"
     )
 
     if uploaded:
+        is_image = uploaded.type.startswith("image/")
+        file_icon = "🖼" if is_image else "📄"
+
         st.markdown(
-            f'<div class="tip-box">📄 <strong>{uploaded.name}</strong> &#8212; ready to analyse</div>',
+            f'<div class="tip-box" style="animation:slideInLeft 0.4s ease">' +
+            f'{file_icon} <strong>{uploaded.name}</strong> — analysing now…</div>',
             unsafe_allow_html=True
         )
-        if st.button("⚗ Analyse with Elixir AI", use_container_width=True):
-            is_image = uploaded.type.startswith("image/")
-            prog = st.progress(0, text="Reading file...")
-            prog.progress(20, text="Preparing content...")
-            with st.spinner(f"Elixir AI is analysing {uploaded.name}..."):
-                try:
-                    raw   = uploaded.read()
-                    if is_image:
-                        analysis = ai_analyze_image(raw, profile)
-                    else:
-                        analysis = ai_analyze_text(raw.decode("utf-8","ignore"), profile)
 
-                    b64_thumb = base64.b64encode(raw).decode() if is_image else None
-                    prog.progress(85, text="Saving note...")
-                    prog.progress(85, text="Saving note...")
-                    note = {
-                        "id":        f"n{int(time.time()*1000)}",
-                        "title":     uploaded.name.rsplit(".",1)[0],
-                        "is_image":  is_image,
-                        "b64_thumb": b64_thumb,
-                        "analysis":  analysis,
-                        "filename":  uploaded.name,
-                        "created":   __import__("datetime").datetime.now().strftime("%d %b %Y"),
-                    }
-                    if space["id"] not in st.session_state.notes:
-                        st.session_state.notes[space["id"]] = []
-                    st.session_state.notes[space["id"]].insert(0, note)
-                    prog.progress(100, text="Done!")
-                    prog.progress(100, text="Done!")
-                    st.success("Note saved!")
-                    st.rerun()
-                except Exception as e:
-                    prog.empty()
-                    st.error(f"Analysis failed: {e}")
+        prog = st.progress(0, text="Reading file…")
+        prog.progress(15, text="Preparing content…")
 
-    # Notes list
+        with st.spinner(f"⚗ Elixir AI is studying {uploaded.name}…"):
+            try:
+                raw = uploaded.read()
+                prog.progress(35, text="Sending to Groq AI…")
+
+                if is_image:
+                    analysis = ai_analyze_image(raw, profile)
+                else:
+                    analysis = ai_analyze_text(raw.decode("utf-8", "ignore"), profile)
+
+                prog.progress(88, text="Saving study notes…")
+
+                note = {
+                    "id":        f"n{int(time.time()*1000)}",
+                    "title":     uploaded.name.rsplit(".", 1)[0],
+                    "is_image":  is_image,
+                    "b64_thumb": base64.b64encode(raw).decode() if is_image else None,
+                    "analysis":  analysis,
+                    "filename":  uploaded.name,
+                    "created":   __import__("datetime").datetime.now().strftime("%d %b %Y, %H:%M"),
+                }
+                if space["id"] not in st.session_state.notes:
+                    st.session_state.notes[space["id"]] = []
+                st.session_state.notes[space["id"]].insert(0, note)
+
+                # Reset uploader so user can upload another file
+                st.session_state[f'uk_{space["id"]}'] = uk + 1
+
+                prog.progress(100, text="Done ✓")
+                st.success("Study notes saved!")
+                st.rerun()
+
+            except Exception as e:
+                prog.empty()
+                st.error(f"Analysis failed: {e}")
+
+    # ── Study notes list — most recent expanded ──────────────────────────────
+    notes = st.session_state.notes.get(space["id"], [])
     if notes:
-        st.markdown(f'<h4 style="font-weight:900;font-size:15px;margin-top:24px;margin-bottom:12px">Analysed notes ({len(notes)})</h4>', unsafe_allow_html=True)
-        for note in notes:
-            with st.expander(f"{'🖼' if note['is_image'] else '📄'}  {note['title']} &#8212; {note['created']}"):
+        st.markdown(
+            f'<h4 style="font-weight:900;font-size:15px;margin-top:28px;margin-bottom:14px;' +
+            f'color:#E2E2F0;border-left:3px solid #3BBFAF;padding-left:10px">' +
+            f'Study Notes ({len(notes)})</h4>',
+            unsafe_allow_html=True
+        )
+        for i, note in enumerate(notes):
+            label = f"{'🖼' if note['is_image'] else '📄'}  {note['title']}  ·  {note['created']}"
+            with st.expander(label, expanded=(i == 0)):
                 if note["is_image"] and note.get("b64_thumb"):
-                    st.image(base64.b64decode(note["b64_thumb"]), use_container_width=True)
+                    st.image(
+                        base64.b64decode(note["b64_thumb"]),
+                        use_container_width=True,
+                        caption=note["filename"]
+                    )
                 st.markdown(note["analysis"])
-                if st.button("Copy to clipboard", key=f"copy_{note['id']}"):
-                    st.code(note["analysis"])
+                c1, c2 = st.columns([1, 1])
+                with c1:
+                    if st.button("Copy notes", key=f"copy_{note['id']}"):
+                        st.code(note["analysis"], language=None)
+                with c2:
+                    st.download_button(
+                        "Download .txt",
+                        note["analysis"],
+                        file_name=f"{note['title']}_notes.txt",
+                        mime="text/plain",
+                        key=f"dl_{note['id']}"
+                    )
     else:
-        st.markdown('<p style="text-align:center;color:#ADADAA;font-size:13px;margin-top:24px">No notes yet. Upload a file to begin!</p>', unsafe_allow_html=True)
+        st.markdown(
+            '<div style="text-align:center;padding:40px 20px;border:2px dashed #1E1E34;' +
+            'border-radius:14px;margin-top:16px">' +
+            '<div style="font-size:32px;margin-bottom:10px;opacity:.4">↑</div>' +
+            '<p style="color:#5050A0;font-size:14px">Upload your first file to generate study notes.</p>' +
+            '</div>',
+            unsafe_allow_html=True
+        )
 
 
 def screen_studyplan():
