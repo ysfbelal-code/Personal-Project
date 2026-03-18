@@ -271,10 +271,19 @@ def ai_study_plan(profile: dict) -> str:
     resp = client.chat.completions.create(
         model="llama-3.3-70b-versatile",
         messages=[{"role": "user", "content": (
-            f"Weekly study plan for {profile['grade']} {profile['curriculum']} "
-            f"student in {profile['region']}. Subjects: {subs}.\n"
-            "Include Mon&#8211;Sun with daily subject slots, specific techniques, "
-            "Pomodoro breaks, weekend review. Use bold day headers."
+            f"Generate a weekly study plan for a {profile['grade']} {profile['curriculum']} "
+            f"student in {profile['region']}. Subjects: {subs}.\n\n"
+            "Rules:\n"
+            "- Assign one or two subjects per day (Mon–Sun)\n"
+            "- For each day, suggest a Pomodoro format e.g. 25/5 x 4 or 50/10 x 3\n"
+            "- Do NOT include any times of day — the student decides when to study\n"
+            "- Do NOT add motivational filler or introductions, just the plan\n"
+            "- Use this exact format for each day:\n"
+            "**Monday**: Revise [Subject] — [X/Y Pomodoro x N]\n"
+            "**Tuesday**: Revise [Subject] — [X/Y Pomodoro x N]\n"
+            "...and so on through Sunday."
+            "If the user's region is such where the week starts on Sunday\n"
+            "The study plan should adapt to it."
         )}],
         max_tokens=1024,
     )
