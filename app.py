@@ -7,7 +7,6 @@ import base64
 from groq import Groq
 from PIL import Image
 import io, time, random, json
-import streamlit.components.v1 as components
 
 # ── Page config ───────────────────────────────────────────────────────────────
 st.set_page_config(
@@ -548,7 +547,14 @@ def screen_signin():
             # Admin: email match only, no password needed
             if email.strip().lower() == ADMIN_EMAIL.lower():
                 st.session_state.session = {"id":ADMIN_ID,"email":ADMIN_EMAIL,"username":ADMIN_USERNAME,"is_admin":True}
-                go("dashboard" if st.session_state.profile else "onboard")
+                if not st.session_state.profile:
+                    st.session_state.profile = {
+                        "grade":      "Year 8",
+                        "region":     "Qatar / GCC",
+                        "curriculum": "Cambridge Lower Secondary",
+                        "subjects":   [],
+                    }
+                go("dashboard")
             else:
                 pw_hash = hashlib.sha256(pw.encode()).hexdigest()
                 user = next((u for u in st.session_state.users
@@ -589,88 +595,21 @@ def screen_onboard():
 
         elif step == 1:
             st.markdown('<h3 style="font-weight:900">Which subjects do you study?</h3>', unsafe_allow_html=True)
-            st.markdown('<p style="color:#6E6E6B;font-size:13px;margin-bottom:10px">Select all that apply.</p>', unsafe_allow_html=True)
+            st.markdown('<p style="color:#6E6E6B;font-size:13px;margin-bottom:12px">Select all that apply.</p>', unsafe_allow_html=True)
             picked = list(st.session_state.ob_picked)
-            subjects_json = json.dumps([[sid,name,icon] for sid,name,icon in SUBJECTS])
-            picked_json   = json.dumps(picked)
-            n_rows = (len(SUBJECTS)+1)//2
-            grid_html = f"""<!DOCTYPE html><html><head>
-<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@700&display=swap" rel="stylesheet">
-<style>
-*{{box-sizing:border-box;margin:0;padding:0}}
-body{{background:transparent;font-family:'Cambria Math',Cambria,serif}}
-.grid{{display:grid;grid-template-columns:1fr 1fr;gap:7px;padding:2px}}
-.btn{{
-  display:flex;align-items:center;gap:8px;
-  padding:9px 11px;border-radius:10px;cursor:pointer;
-  border:1.5px solid #2D2D2B;background:#111110;
-  color:#8A8A87;font-family:inherit;font-weight:700;font-size:12.5px;
-  width:100%;text-align:left;
-  transition:background .3s ease,color .3s ease,border-color .3s ease,
-             box-shadow .3s ease,transform .15s ease;
-}}
-.btn:hover{{background:#1A1A19;color:#ECECEA;border-color:#3A3A38;transform:translateY(-1px)}}
-.btn.sel{{background:#0B201D;color:#3BBFAF;border-color:#3BBFAF;box-shadow:0 0 12px rgba(59,191,175,.25)}}
-.btn.sel:hover{{background:#0F2A26;box-shadow:0 0 20px rgba(59,191,175,.38);transform:translateY(-1px)}}
-.icon{{font-size:14px;min-width:18px;text-align:center;font-family:monospace}}
-.chk{{margin-left:auto;color:#3BBFAF;font-size:13px;animation:pop .2s ease}}
-@keyframes pop{{from{{transform:scale(0)}}to{{transform:scale(1)}}}}
-</style></head><body>
-<div class="grid" id="g"></div>
-<script>
-const S={subjects_json};
-let P={picked_json};
-function render(){{
-  const g=document.getElementById('g');g.innerHTML='';
-  S.forEach(([id,name,icon])=>{{
-    const sel=P.includes(id);
-    const b=document.createElement('button');
-    b.className='btn'+(sel?' sel':'');
-    b.innerHTML=`<span class="icon">${{icon}}</span>${{name}}${{sel?'<span class="chk">✓</span>':''}}\`;
-    b.onclick=()=>{{
-      const i=P.indexOf(id);
-      if(i>=0)P.splice(i,1);else P.push(id);
-      render();
-      Streamlit.setComponentValue(JSON.stringify(P));
-    }};
-    g.appendChild(b);
-  }});
-}}
-render();
-Streamlit.setComponentReady();
-</script></body></html>"""
-            result = components.html(grid_html, height=n_rows*52+16, scrolling=False)
-            if result is not None:
-                new_p = json.loads(result)
-                if new_p != st.session_state.ob_picked:
-                    st.session_state.ob_picked = new_p
-                    st.rerun()
-            # JS reinforcement for subject button colours
-            selected_names = [name for sid,name,icon in SUBJECTS if sid in picked]
-            st.markdown(f"""
-            <script>
-            (function(){{
-                var sel={str([f"{icon}  {name}" for sid,name,icon in [(s[0],s[1],s[2]) for s in [(sid,name,icon) for sid,name,icon in SUBJECTS]]]).replace("'",'"')};
-                function style(){{
-                    document.querySelectorAll('.sub-sel button,.sub-unsel button').forEach(function(btn){{
-                        var p=btn.closest('.sub-sel,.sub-unsel');
-                        if(!p)return;
-                        if(p.classList.contains('sub-sel')){{
-                            btn.style.background='#0B2222';btn.style.color='#3BBFAF';
-                            btn.style.border='1.5px solid #3BBFAF';
-                            btn.style.boxShadow='0 0 10px rgba(59,191,175,0.15)';
-                        }}else{{
-                            btn.style.background='#07070D';btn.style.color='#484860';
-                            btn.style.border='1.5px solid #1C1C2E';
-                            btn.style.boxShadow='none';
-                        }}
-                    }});
-                }}
-                style();setTimeout(style,120);setTimeout(style,600);
-                new MutationObserver(style).observe(document.body,{{childList:true,subtree:true}});
-            }})();
-            </script>""", unsafe_allow_html=True)
-
+            cols = st.columns(2)
+            for i, (sid, name, icon) in enumerate(SUBJECTS):
+                is_sel = sid in picked
+                cls = "sub-sel" if is_sel else "sub-unsel"
+                with cols[i % 2]:
+                    st.markdown(f'<div class="{cls}">', unsafe_allow_html=True)
+                    label = f"{'✓ ' if is_sel else ''}{icon}  {name}"
+                    if st.button(label, key=f"sub_{sid}", use_container_width=True):
+                        if is_sel: picked.remove(sid)
+                        else:      picked.append(sid)
+                        st.session_state.ob_picked = picked
+                        st.rerun()
+                    st.markdown('</div>', unsafe_allow_html=True)
             st.markdown("<br/>", unsafe_allow_html=True)
             c1, c2 = st.columns(2)
             with c1:
