@@ -46,9 +46,13 @@ REGIONS     = ["United Kingdom","Qatar / GCC","United States","Australia",
                "Canada","India","Singapore","South Africa","Other"]
 CURRICULA   = ["GCSE","IGCSE","A-Level","AS-Level","IB MYP","IB Diploma",
                "AP","Cambridge Lower Secondary","National Curriculum","Other"]
-SPACE_COLORS = ["#3BBFAF","#6366f1","#f59e0b","#ef4444","#8b5cf6",
-                "#ec4899","#f97316","#14b8a6"]
+SPACE_COLORS = {"Cyan":"#3BBFAF","Indigo":"#6366f1","Amber":"#f59e0b","Red":"#ef4444","Violet":"#8b5cf6","Pink":"#ec4899","Orange":"#f97316","Teal":"#14b8a6"}
 SPACE_ICONS  = ["▣","◎","◈","⬡","◆","◉","▲","✦"]
+
+# ── Admin credentials ────────────────────────────────────────────────────────
+ADMIN_EMAIL    = "admin@elixir.app"
+ADMIN_USERNAME = "Youssef"
+ADMIN_ID       = "admin_001"
 
 STUDY_TIPS = [
     "🍅 **Pomodoro method:** Study for 25 minutes, then take a 5-minute break. After 4 cycles take a longer 20-minute break. This keeps your brain fresh and prevents burnout.",
@@ -76,149 +80,66 @@ PROF_COLORS = {
 def inject_css():
     st.markdown("""
     <style>
-    @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap');
-
-    /* Global font */
-    html, body, [class*="css"], .stApp {
-        font-family: 'Cambria Math', Cambria, Georgia, serif !important;
-    }
-    h1,h2,h3,h4,h5,h6,p,span,div,label,button,input,select,textarea {
-        font-family: 'Cambria Math', Cambria, Georgia, serif !important;
-    }
-
-    /* Hide Streamlit chrome */
-    #MainMenu, footer, header { visibility: hidden; }
-    .block-container { padding-top: 2rem; padding-bottom: 2rem; max-width: 900px; }
-
-    /* Accent color on buttons */
-    .stButton > button {
-        background-color: #3BBFAF;
-        color: white;
-        border: none;
-        border-radius: 10px;
-        font-weight: 700;
-        font-family: 'Cambria Math', Cambria, serif !important;
-        transition: background .15s;
-    }
-    .stButton > button:hover { background-color: #33ADA0; color: white; }
-
-    /* Secondary button style via custom class */
-    .btn-secondary > button {
-        background: transparent !important;
-        color: #181816 !important;
-        border: 1.5px solid #E6E6E3 !important;
-    }
-
-    /* Input fields */
-    .stTextInput > div > div > input,
-    .stSelectbox > div > div > div,
-    .stTextArea textarea {
-        border-radius: 9px !important;
-        font-family: 'Cambria Math', Cambria, serif !important;
-    }
-
+    @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;900&display=swap');
+    html,body,[class*="css"],.stApp{font-family:'Cambria Math',Cambria,serif !important;background:#0E0E0E !important;color:#ECECEA !important;}
+    h1,h2,h3,h4,h5,h6,p,label,button,span,div{font-family:'Cambria Math',Cambria,serif !important;}
+    #MainMenu,footer,header{visibility:hidden;}
+    .block-container{padding-top:2rem;padding-bottom:2rem;max-width:920px;}
+    /* Inputs */
+    .stTextInput>div>div>input,.stTextArea textarea{background:#1A1A19 !important;color:#ECECEA !important;border:1.5px solid #2D2D2B !important;border-radius:9px !important;}
+    .stSelectbox>div>div{background:#1A1A19 !important;border:1.5px solid #2D2D2B !important;border-radius:9px !important;}
+    .stSelectbox>div>div>div{color:#ECECEA !important;}
+    div[data-testid="stFileUploadDropzone"]{background:#1A1A19 !important;border:2px dashed #2D2D2B !important;border-radius:11px !important;}
+    div[data-testid="stFileUploadDropzone"] p,div[data-testid="stFileUploadDropzone"] span{color:#8A8A87 !important;}
+    /* Expander */
+    .streamlit-expanderHeader{background:#1A1A19 !important;color:#ECECEA !important;border-radius:9px !important;border:1px solid #2D2D2B !important;}
+    .streamlit-expanderContent{background:#1A1A19 !important;border:1px solid #2D2D2B !important;border-top:none !important;color:#ECECEA !important;}
+    /* Slider */
+    .stSlider>div{color:#ECECEA !important;}
+    /* Primary button */
+    .stButton>button{background:#3BBFAF !important;color:#fff !important;border:none !important;border-radius:10px !important;font-weight:700 !important;transition:all .2s !important;}
+    .stButton>button:hover{background:#33ADA0 !important;transform:translateY(-1px);}
+    .stButton>button:active{transform:scale(.98);}
+    /* Subject buttons - black bg, cyan when selected */
+    .sub-unsel .stButton>button{background:#111110 !important;color:#8A8A87 !important;border:1.5px solid #2D2D2B !important;}
+    .sub-unsel .stButton>button:hover{background:#162422 !important;color:#3BBFAF !important;border-color:#3BBFAF !important;}
+    .sub-sel .stButton>button{background:#162422 !important;color:#3BBFAF !important;border:1.5px solid #3BBFAF !important;}
     /* Cards */
-    .elixir-card {
-        background: white;
-        border-radius: 13px;
-        border: 1px solid #E6E6E3;
-        padding: 18px;
-        margin-bottom: 12px;
-        box-shadow: 0 1px 3px rgba(0,0,0,.05);
-    }
-
-    /* Tip box */
-    .tip-box {
-        background: #EAF8F6;
-        border-left: 4px solid #3BBFAF;
-        border-radius: 0 10px 10px 0;
-        padding: 14px 16px;
-        margin-bottom: 8px;
-        font-size: 14px;
-        line-height: 1.7;
-    }
-
-    /* Note card */
-    .note-card {
-        background: #F7F7F5;
-        border-radius: 11px;
-        border: 1px solid #E6E6E3;
-        padding: 14px;
-        margin-bottom: 8px;
-        cursor: pointer;
-    }
-    .note-card:hover { border-color: #3BBFAF; }
-
-    /* Subject badge */
-    .subject-badge {
-        display: inline-block;
-        padding: 2px 10px;
-        border-radius: 20px;
-        font-size: 11px;
-        font-weight: 800;
-        margin-bottom: 3px;
-    }
-
+    .elixir-card{background:#1A1A19;border-radius:13px;border:1px solid #2D2D2B;padding:18px;margin-bottom:12px;color:#ECECEA;animation:fadeUp .4s ease;}
+    /* Tip */
+    .tip-box{background:#162422;border-left:4px solid #3BBFAF;border-radius:0 10px 10px 0;padding:14px 16px;font-size:14px;line-height:1.7;color:#ECECEA;animation:fadeUp .4s ease;}
     /* Space card */
-    .space-card {
-        background: white;
-        border-radius: 13px;
-        border: 1px solid #E6E6E3;
-        padding: 16px;
-        cursor: pointer;
-        transition: box-shadow .2s;
-    }
-    .space-card:hover {
-        box-shadow: 0 4px 14px rgba(0,0,0,.08);
-        border-color: #3BBFAF;
-    }
-
-    /* Divider */
-    .elixir-divider {
-        border: none;
-        border-top: 1px solid #E6E6E3;
-        margin: 16px 0;
-    }
-
-    /* Logo img centering */
-    .logo-center { display: flex; justify-content: center; margin-bottom: 16px; }
-
-    /* Analysis output */
-    .analysis-box {
-        background: #F7F7F5;
-        border-radius: 11px;
-        padding: 20px;
-        font-size: 14px;
-        line-height: 1.8;
-        border: 1px solid #E6E6E3;
-    }
-
-    /* Welcome hero */
-    .hero-title {
-        font-size: 36px;
-        font-weight: 900;
-        text-align: center;
-        letter-spacing: -.5px;
-        line-height: 1.15;
-        color: #181816;
-        margin-bottom: 10px;
-    }
-    .hero-sub {
-        font-size: 15px;
-        text-align: center;
-        color: #6E6E6B;
-        margin-bottom: 36px;
-        line-height: 1.65;
-    }
+    .space-card{background:#1A1A19;border-radius:13px;border:1px solid #2D2D2B;padding:16px;color:#ECECEA;animation:fadeUp .35s ease;}
+    .space-card:hover{box-shadow:0 4px 14px rgba(0,0,0,.5);border-color:#3BBFAF;}
+    /* Analysis */
+    .analysis-box{background:#1A1A19;border-radius:11px;padding:20px;font-size:14px;line-height:1.8;border:1px solid #2D2D2B;color:#ECECEA;animation:fadeUp .4s ease;}
+    /* Hero */
+    .hero-title{font-size:36px;font-weight:900;text-align:center;letter-spacing:-.5px;line-height:1.15;color:#ECECEA;margin-bottom:10px;animation:fadeUp .5s ease;}
+    .hero-sub{font-size:15px;text-align:center;color:#8A8A87;margin-bottom:36px;line-height:1.65;animation:fadeUp .55s ease;}
+    .logo-center{display:flex;justify-content:center;margin-bottom:16px;}
+    .elixir-divider{border:none;border-top:1px solid #2D2D2B;margin:16px 0;}
+    /* Progress */
+    .stProgress>div>div>div{background:#3BBFAF !important;}
+    .stProgress>div>div{background:#2D2D2B !important;border-radius:4px;}
+    .stSpinner>div{border-top-color:#3BBFAF !important;}
+    /* Scrollbar */
+    ::-webkit-scrollbar{width:5px;}::-webkit-scrollbar-thumb{background:#2D2D2B;border-radius:10px;}
+    /* Markdown */
+    .stMarkdown p,.stMarkdown li{color:#ECECEA !important;}
+    /* Animations */
+    @keyframes fadeUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
     </style>
     """, unsafe_allow_html=True)
 
 # ── Session state initialisation ──────────────────────────────────────────────
 def init_state():
+    import hashlib as _hl
+    _admin = {"id":ADMIN_ID,"email":ADMIN_EMAIL,"username":ADMIN_USERNAME,"pw_hash":"","rec":"","is_admin":True}
+
     defaults = {
-        "screen":      "apikey",   # current screen
-        "groq_key":    "",         # Groq API key
-        "users":       [],         # list of user dicts
+        "screen":      "apikey",
+        "groq_key":    "",
+        "users":       [_admin],   # admin pre-seeded
         "session":     None,       # logged-in user dict
         "profile":     None,       # onboarding profile dict
         "spaces":      [],         # list of space dicts
@@ -267,12 +188,12 @@ def ai_analyze_image(image_bytes: bytes, profile: dict) -> str:
                     f"You are Elixir AI, expert tutor for {profile['grade']} "
                     f"{profile['curriculum']} students in {profile['region']}. "
                     f"Subjects: {subs}.\n\n"
-                    "Analyse this study material:\n\n"
-                    "**Key Concepts** &#8212; main topics\n"
-                    "**Study Notes** &#8212; clear structured notes\n"
-                    "**Step-by-Step Breakdowns** &#8212; simplify complex parts\n"
-                    "**Study Tips** &#8212; 3 personalised tips\n"
-                    "**Check Your Understanding** &#8212; 3 practice questions"
+                    "Analyse ONLY what is visible in this image. Do NOT generate routines.\n\n"
+                    "**Key Concepts** - Main topics visible in this image\n"
+                    "**Study Notes** - Notes from this image only\n"
+                    "**Step-by-Step Breakdowns** - Simplify complex parts shown\n"
+                    "**Study Tips** - 3 tips specific to this content\n"
+                    "**Check Your Understanding** - 3 questions from this image"
                  )}
             ]
         }],
@@ -297,12 +218,12 @@ def ai_analyze_text(text: str, profile: dict) -> str:
              )},
             {"role": "user",
              "content": (
-                "Analyse this study material:\n\n"
-                "**Key Concepts** &#8212; main topics\n"
-                "**Study Notes** &#8212; clear structured notes\n"
-                "**Step-by-Step Breakdowns** &#8212; simplify complex parts\n"
-                "**Study Tips** &#8212; 3 personalised tips\n"
-                "**Check Your Understanding** &#8212; 3 practice questions\n\n"
+                "Analyse ONLY the uploaded file content. Do NOT generate routines.\n\n"
+                "**Key Concepts** - Main topics in this file\n"
+                "**Study Notes** - Notes from the uploaded content only\n"
+                "**Step-by-Step Breakdowns** - Simplify complex parts in the file\n"
+                "**Study Tips** - 3 tips specific to this content\n"
+                "**Check Your Understanding** - 3 questions from this file\n\n"
                 f"---\n\n{trunc}"
              )}
         ],
@@ -457,14 +378,19 @@ def screen_signin():
 
         if st.button("Sign in →", use_container_width=True):
             import hashlib
-            pw_hash = hashlib.sha256(pw.encode()).hexdigest()
-            user = next((u for u in st.session_state.users
-                         if u["email"]==email and u["pw_hash"]==pw_hash), None)
-            if not user:
-                st.error("Incorrect email or password.")
-            else:
-                st.session_state.session = {"id":user["id"],"email":email,"username":user["username"]}
+            # Admin: email match only, no password needed
+            if email.strip().lower() == ADMIN_EMAIL.lower():
+                st.session_state.session = {"id":ADMIN_ID,"email":ADMIN_EMAIL,"username":ADMIN_USERNAME,"is_admin":True}
                 go("dashboard" if st.session_state.profile else "onboard")
+            else:
+                pw_hash = hashlib.sha256(pw.encode()).hexdigest()
+                user = next((u for u in st.session_state.users
+                             if u["email"]==email and u["pw_hash"]==pw_hash), None)
+                if not user:
+                    st.error("Incorrect email or password.")
+                else:
+                    st.session_state.session = {"id":user["id"],"email":email,"username":user["username"],"is_admin":False}
+                    go("dashboard" if st.session_state.profile else "onboard")
 
         st.markdown('<p style="text-align:center;margin-top:14px;font-size:13px;color:#6E6E6B">No account? </p>', unsafe_allow_html=True)
         if st.button("Create one", use_container_width=False): go("signup")
@@ -576,7 +502,9 @@ def screen_dashboard():
     st.markdown('<hr class="elixir-divider"/>', unsafe_allow_html=True)
 
     # ── Greeting ─────────────────────────────────────────────────────────────
-    st.markdown(f'<h2 style="font-weight:900;margin-bottom:4px">Good {greet}, {session["username"]}</h2>', unsafe_allow_html=True)
+    is_admin = session.get("is_admin", False)
+    badge = ' <span style="font-size:12px;font-weight:800;padding:2px 10px;border-radius:20px;background:#3BBFAF22;color:#3BBFAF">Admin</span>' if is_admin else ""
+    st.markdown(f'<h2 style="font-weight:900;margin-bottom:4px">Good {greet}, {session["username"]}{badge}</h2>', unsafe_allow_html=True)
     st.markdown(f'<p style="color:#6E6E6B;font-size:14px;margin-bottom:24px">{profile["grade"]} · {profile["curriculum"]} · {profile["region"]}</p>', unsafe_allow_html=True)
 
     left, right = st.columns([3, 2], gap="large")
@@ -682,7 +610,8 @@ def screen_new_space():
 
         name  = st.text_input("Space name", placeholder="e.g. Biology Revision")
         icon  = st.selectbox("Icon", SPACE_ICONS)
-        color = st.selectbox("Colour", SPACE_COLORS)
+        color_name = st.selectbox("Colour", list(SPACE_COLORS.keys()))
+        color = SPACE_COLORS[color_name]
 
         subj_names = ["General"] + [s["name"] for s in (profile.get("subjects") or [])]
         subj = st.selectbox("Subject (optional)", subj_names)
@@ -743,6 +672,7 @@ def screen_space():
 
                     b64_thumb = base64.b64encode(raw).decode() if is_image else None
                     prog.progress(85, text="Saving note...")
+                    prog.progress(85, text="Saving note...")
                     note = {
                         "id":        f"n{int(time.time()*1000)}",
                         "title":     uploaded.name.rsplit(".",1)[0],
@@ -755,6 +685,7 @@ def screen_space():
                     if space["id"] not in st.session_state.notes:
                         st.session_state.notes[space["id"]] = []
                     st.session_state.notes[space["id"]].insert(0, note)
+                    prog.progress(100, text="Done!")
                     prog.progress(100, text="Done!")
                     st.success("Note saved!")
                     st.rerun()
