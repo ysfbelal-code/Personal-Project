@@ -82,40 +82,22 @@ def google_oauth_url():
         "scope":"openid email profile","state":"google",
         "access_type":"online","prompt":"select_account"})
 
-def microsoft_oauth_url():
-    cid = _secret("MICROSOFT_CLIENT_ID")
-    red = _secret("OAUTH_REDIRECT_URI")
-    tid = _secret("MICROSOFT_TENANT_ID","common")
-    if not cid or not red: return None
-    return f"https://login.microsoftonline.com/{tid}/oauth2/v2.0/authorize?" + urllib.parse.urlencode({
-        "client_id":cid,"redirect_uri":red,"response_type":"code",
-        "scope":"openid email profile","state":"microsoft"})
+
 
 def handle_oauth_callback():
     params = st.query_params
     code  = params.get("code","")
     state = params.get("state","")
-    if not code or state not in ("google","microsoft"): return False
+    if not code or state != "google": return False
     red = _secret("OAUTH_REDIRECT_URI")
     try:
-        if state == "google":
-            tok  = requests.post("https://oauth2.googleapis.com/token",data={
-                "code":code,"client_id":_secret("GOOGLE_CLIENT_ID"),
-                "client_secret":_secret("GOOGLE_CLIENT_SECRET"),
-                "redirect_uri":red,"grant_type":"authorization_code"},timeout=10).json()
-            info = requests.get("https://www.googleapis.com/oauth2/v2/userinfo",
-                headers={"Authorization":f"Bearer {tok.get('access_token','')}"},timeout=10).json()
-            email = info.get("email",""); name = info.get("name",email.split("@")[0])
-        else:
-            tid = _secret("MICROSOFT_TENANT_ID","common")
-            tok  = requests.post(f"https://login.microsoftonline.com/{tid}/oauth2/v2.0/token",data={
-                "code":code,"client_id":_secret("MICROSOFT_CLIENT_ID"),
-                "client_secret":_secret("MICROSOFT_CLIENT_SECRET"),
-                "redirect_uri":red,"grant_type":"authorization_code"},timeout=10).json()
-            info = requests.get("https://graph.microsoft.com/v1.0/me",
-                headers={"Authorization":f"Bearer {tok.get('access_token','')}"},timeout=10).json()
-            email = info.get("mail") or info.get("userPrincipalName","")
-            name  = info.get("displayName",email.split("@")[0])
+        tok  = requests.post("https://oauth2.googleapis.com/token",data={
+            "code":code,"client_id":_secret("GOOGLE_CLIENT_ID"),
+            "client_secret":_secret("GOOGLE_CLIENT_SECRET"),
+            "redirect_uri":red,"grant_type":"authorization_code"},timeout=10).json()
+        info = requests.get("https://www.googleapis.com/oauth2/v2/userinfo",
+            headers={"Authorization":f"Bearer {tok.get('access_token','')}"},timeout=10).json()
+        email = info.get("email",""); name = info.get("name",email.split("@")[0])
         if not email: st.error("OAuth: could not retrieve email."); return True
         existing = next((u for u in st.session_state.users if u["email"]==email),None)
         if not existing:
@@ -263,9 +245,7 @@ def inject_css():
         background:#ffffff !important; color:#1a1a1a !important;
         border:1.5px solid #2a2a2a !important;
     }
-    .oauth-ms .stLinkButton a{
-        background:#2563EB !important; color:#fff !important; border:none !important;
-    }
+
 
     /* ── Cards ── */
     .space-card{
@@ -433,30 +413,64 @@ def render_sidebar():
             go("welcome")
         st.markdown('</div>', unsafe_allow_html=True)
 
-# ── OAuth button pair (always visible) ───────────────────────────────────────
+# ── Google sign-in (official Google G logo, no emojis) ───────────────────────
 def _oauth_buttons(suffix=""):
-    """Always render Google + Microsoft buttons. Shows info if not configured."""
+    """
+    Single Google sign-in button using the official Google G SVG logo.
+    School and Microsoft OAuth removed. Email login remains as fallback below.
+    """
     g_url = google_oauth_url()
-    m_url = microsoft_oauth_url()
-    c1, c2 = st.columns(2)
-    with c1:
-        st.markdown('<div class="oauth-google">', unsafe_allow_html=True)
-        if g_url:
-            st.link_button("🔵  Google", g_url, use_container_width=True)
-        else:
-            if st.button("🔵  Google", key=f"g_{suffix}", use_container_width=True):
-                st.info("To enable: add GOOGLE_CLIENT_ID + GOOGLE_CLIENT_SECRET to Streamlit secrets.")
-        st.markdown('</div>', unsafe_allow_html=True)
-    with c2:
-        st.markdown('<div class="oauth-ms">', unsafe_allow_html=True)
-        if m_url:
-            st.link_button("🟦  Microsoft", m_url, use_container_width=True)
-        else:
-            if st.button("🟦  Microsoft", key=f"m_{suffix}", use_container_width=True):
-                st.info("To enable: add MICROSOFT_CLIENT_ID + MICROSOFT_CLIENT_SECRET to Streamlit secrets.")
-        st.markdown('</div>', unsafe_allow_html=True)
+
+    # Official Google G logo as inline SVG
+    g_logo = (
+        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" '
+        'style="width:18px;height:18px;vertical-align:middle;margin-right:8px">'
+        '<path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85'
+        'C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19'
+        'C12.43 13.72 17.74 9.5 24 9.5z"/>'
+        '<path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02'
+        'h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36'
+        ' 7.09-17.65z"/>'
+        '<path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59'
+        's.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54'
+        ' 2.56 10.78l7.97-6.19z"/>'
+        '<path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6'
+        'c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98'
+        ' 6.19C6.51 42.62 14.62 48 24 48z"/>'
+        '<path fill="none" d="M0 0h48v48H0z"/></svg>'
+    )
+
+    btn_style = (
+        "display:flex;align-items:center;justify-content:center;"
+        "padding:10px 20px;border-radius:10px;"
+        "background:#ffffff;color:#3c4043;"
+        "border:1.5px solid #dadce0;"
+        "text-decoration:none;font-size:14px;font-weight:600;"
+        "font-family:'Cambria Math',Cambria,serif;"
+        "width:100%;box-sizing:border-box;"
+        "transition:box-shadow .15s;"
+    )
+
+    if g_url:
+        st.markdown(
+            f'<a href="{g_url}" style="{btn_style}" '
+            f'onmouseover="this.style.boxShadow=\'0 2px 8px rgba(0,0,0,.25)\'" '
+            f'onmouseout="this.style.boxShadow=\'none\'">'
+            f'{g_logo}Continue with Google</a>',
+            unsafe_allow_html=True,
+        )
+    else:
+        # Secrets not configured — still show a proper-looking button
+        if st.button("Continue with Google", key=f"g_{suffix}", use_container_width=True):
+            st.info(
+                "To enable Google login, add GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, "
+                "and OAUTH_REDIRECT_URI to your Streamlit secrets."
+            )
+
     st.markdown(
-        '<p style="text-align:center;color:#404040;font-size:12px;margin:10px 0">'        '— or continue with email —</p>', unsafe_allow_html=True)
+        '<p style="text-align:center;color:#404040;font-size:12px;margin:10px 0">'
+        '— or continue with email —</p>', unsafe_allow_html=True)
+
 
 # ── AI ────────────────────────────────────────────────────────────────────────
 def ai_analyze_image(image_bytes, profile):
