@@ -313,7 +313,11 @@ def subStr(profile):
 
 # ── Sidebar ───────────────────────────────────────────────────────────────────
 def render_sidebar():
-    """Notion-style sidebar: workspace header, new-page, nav, spaces, footer."""
+    """
+    Notion-style sidebar using only native Streamlit widgets.
+    st.image() is used for the logo — the ONLY reliable method on Streamlit Cloud.
+    st.markdown <img> data-URIs are blocked by Streamlit's CSP and must never be used.
+    """
     if not st.session_state.session:
         return
 
@@ -322,84 +326,61 @@ def render_sidebar():
     spaces  = st.session_state.spaces
 
     with st.sidebar:
-        # ── Workspace header (logo + app name, like Notion) ───────────────
-        st.markdown(
-            f'''<div style="display:flex;align-items:center;gap:10px;
-                padding:14px 14px 10px;border-bottom:1px solid #1E1E1E;
-                margin-bottom:4px">
-                <img src="data:image/png;base64,{LOGO_B64}"
-                     style="width:28px;height:28px;object-fit:contain;flex-shrink:0"/>
-                <div>
-                  <div style="font-size:13.5px;font-weight:700;
-                       color:#ECECEA;line-height:1.2">Elixir</div>
-                  <div style="font-size:11px;color:#555">
-                       {session["username"]}'s workspace</div>
-                </div>
-            </div>''',
-            unsafe_allow_html=True,
-        )
+        # ── Logo + workspace name ─────────────────────────────────────────
+        # st.image with decoded bytes is the only CSP-safe way to show images
+        logo_col, name_col = st.columns([1, 3], gap="small")
+        with logo_col:
+            st.image(base64.b64decode(LOGO_B64), width=36)
+        with name_col:
+            uname = session.get('username', '')
+            st.markdown(
+                f'<div style="padding-top:6px">'
+                f'<div style="font-size:13px;font-weight:700;color:#ECECEA;line-height:1.2">Elixir</div>'
+                f'<div style="font-size:10px;color:#555">{uname}\'s workspace</div>'
+                '</div>',
+                unsafe_allow_html=True,
+            )
 
-        # ── New Space (like Notion's new page button) ─────────────────────
-        # Rendered as HTML so it stays flat and distinct from regular nav items
-        st.markdown(
-            '''<div style="padding:6px 8px 4px">
-              <a href="#" id="btn-new-space"
-                 style="display:flex;align-items:center;gap:8px;
-                 padding:6px 10px;border-radius:6px;cursor:pointer;
-                 color:#3BBFAF;text-decoration:none;font-size:13px;
-                 font-weight:600;transition:background .12s"
-                 onmouseover="this.style.background='#1A2E2E'"
-                 onmouseout="this.style.background='transparent'"
-                 onclick="void(0)">
-                 <span style="font-size:16px;line-height:1">＋</span>
-                 New Space
-              </a>
-            </div>''',
-            unsafe_allow_html=True,
-        )
-        # Invisible Streamlit button handles the actual click
-        if st.button("＋  New Space", key="sb_new_real", use_container_width=True):
+        st.markdown('<hr style="border:none;border-top:1px solid #1E1E1E;margin:8px 0 4px"/>',
+                    unsafe_allow_html=True)
+
+        # ── New Space ─────────────────────────────────────────────────────
+        if st.button("＋  New Space", key="sb_new", use_container_width=True):
             go("new_space")
 
-        st.markdown('<div style="height:4px"></div>', unsafe_allow_html=True)
+        st.markdown('<hr style="border:none;border-top:1px solid #1E1E1E;margin:4px 0"/>',
+                    unsafe_allow_html=True)
 
-        # ── Navigation items ──────────────────────────────────────────────
-        nav = [
-            ("◉", "Dashboard",   "dashboard"),
-            ("📅","Study Plan",  "studyplan"),
-        ]
-        for icon, label, target in nav:
-            if st.button(f"{icon}  {label}", key=f"sb_{target}", use_container_width=True):
-                if target == "studyplan":
-                    st.session_state.plan_text = ""
-                go(target)
+        # ── Navigation ───────────────────────────────────────────────────
+        if st.button("◉  Dashboard", key="sb_dashboard", use_container_width=True):
+            go("dashboard")
+        if st.button("📅  Study Plan", key="sb_studyplan", use_container_width=True):
+            st.session_state.plan_text = ""
+            go("studyplan")
 
-        # ── Spaces section ────────────────────────────────────────────────
+        # ── Spaces list ───────────────────────────────────────────────────
         if spaces:
             st.markdown(
-                '''<div style="padding:10px 14px 2px;
-                    font-size:10.5px;font-weight:600;color:#444;
-                    letter-spacing:.07em;text-transform:uppercase">Spaces</div>''',
+                '<p style="font-size:10px;font-weight:700;color:#444;'                'letter-spacing:.08em;text-transform:uppercase;'                'padding:10px 0 2px;margin:0">Spaces</p>',
                 unsafe_allow_html=True,
             )
             for sp in spaces[:12]:
-                if st.button(f"{sp['icon']}  {sp['name']}", key=f"sb_{sp['id']}", use_container_width=True):
+                if st.button(f"{sp['icon']}  {sp['name']}",
+                             key=f"sb_{sp['id']}", use_container_width=True):
                     st.session_state.cur_space = sp
                     go("space")
 
-        # ── Spacer pushes footer to bottom ────────────────────────────────
-        st.markdown('<div style="flex:1;min-height:40px"></div>', unsafe_allow_html=True)
+        st.markdown('<hr style="border:none;border-top:1px solid #1E1E1E;margin:8px 0"/>',
+                    unsafe_allow_html=True)
 
-        # ── Footer: account info + sign out ───────────────────────────────
-        st.markdown('<div style="border-top:1px solid #1E1E1E;margin-top:8px;padding-top:6px">', unsafe_allow_html=True)
+        # ── Account info ──────────────────────────────────────────────────
         with st.expander(f"⚙  {session['username']}"):
             st.markdown(
-                f'''<p style="margin:0 0 2px;font-size:12px;color:#888">{session["email"]}</p>
-                <p style="font-size:11px;color:#505070;margin:0">
-                    {profile.get("grade","")} · {profile.get("curriculum","")}<br/>
-                    {profile.get("region","")}</p>''',
+                f'<p style="margin:0 0 2px;font-size:12px;color:#888">{session["email"]}</p>'                f'<p style="font-size:11px;color:#505070;margin:0">'                f'{profile.get("grade","")} · {profile.get("curriculum","")}<br/>'                f'{profile.get("region","")}</p>',
                 unsafe_allow_html=True,
             )
+
+        # ── Sign out ──────────────────────────────────────────────────────
         if st.button("Sign out", key="sb_out", use_container_width=True):
             for k in ["session","profile","spaces","notes","cur_space",
                       "ob_step","ob_grade","ob_region","ob_curr",
@@ -411,7 +392,6 @@ def render_sidebar():
                     "" if k in ("ob_grade","ob_region","ob_curr","plan_text") else
                     None)
             go("welcome")
-        st.markdown('</div>', unsafe_allow_html=True)
 
 # ── Google sign-in (official Google G logo, no emojis) ───────────────────────
 def _oauth_buttons(suffix=""):
@@ -557,9 +537,7 @@ def ai_study_plan(spaces):
 def screen_apikey():
     col = st.columns([1,2,1])[1]
     with col:
-        st.markdown(
-            f'<div class="logo-center"><img src="data:image/png;base64,{LOGO_B64}" '            'width="72" style="object-fit:contain"/></div>',
-            unsafe_allow_html=True)
+        st.image(base64.b64decode(LOGO_B64), width=72)
         st.markdown('<h2 style="text-align:center;font-weight:900;margin-bottom:6px">Connect Groq API</h2>', unsafe_allow_html=True)
         st.markdown('<p style="text-align:center;color:#555;font-size:13px;margin-bottom:6px">Elixir uses the Groq free tier — no credit card needed.</p>', unsafe_allow_html=True)
         st.markdown('<p style="text-align:center;font-size:12px;color:#444;margin-bottom:20px">Get a free key at <a href="https://console.groq.com" target="_blank" style="color:#3BBFAF;font-weight:700">console.groq.com</a> → API Keys</p>', unsafe_allow_html=True)
@@ -580,9 +558,7 @@ def screen_apikey():
 def screen_welcome():
     col = st.columns([1,2,1])[1]
     with col:
-        st.markdown(
-            f'<div class="logo-center"><img src="data:image/png;base64,{LOGO_B64}" '            'width="84" style="object-fit:contain"/></div>',
-            unsafe_allow_html=True)
+        st.image(base64.b64decode(LOGO_B64), width=84)
         st.markdown('<h1 class="hero-title">Study smarter,<br/>not harder.</h1>', unsafe_allow_html=True)
         st.markdown('<p class="hero-sub">AI-powered revision tailored to your<br/>grade, curriculum, and learning style.</p>', unsafe_allow_html=True)
         if st.button("Create account", use_container_width=True): go("signup")
