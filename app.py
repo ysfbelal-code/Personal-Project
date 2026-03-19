@@ -290,7 +290,7 @@ def init_state():
     _admin = {"id":ADMIN_ID,"email":ADMIN_EMAIL,"username":ADMIN_USERNAME,
               "pw_hash":"","rec":"","is_admin":True}
     defaults = {
-        "screen":"apikey","groq_key":"","users":[_admin],
+        "screen":"welcome","groq_key":_secret("groq_api",""),"users":[_admin],
         "session":None,"profile":None,"spaces":[],"notes":{},
         "cur_space":None,"ob_step":0,"ob_grade":"","ob_region":"",
         "ob_curr":"","ob_picked":[],"ob_profs":{},
@@ -891,6 +891,10 @@ def main():
     init_state()
     inject_css()
     if handle_oauth_callback(): return
+    # Auto-skip API key screen if key loaded from secrets
+    if st.session_state.screen == "apikey" and st.session_state.groq_key:
+        go("welcome")
+        return
     screen=st.session_state.screen
     if   screen=="apikey":    screen_apikey()
     elif screen=="welcome":   screen_welcome()
