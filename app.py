@@ -417,7 +417,7 @@ def render_sidebar():
 def _oauth_buttons(suffix=""):
     """
     Single Google sign-in button using the official Google G SVG logo.
-    School and Microsoft OAuth removed. Email login remains as fallback below.
+    Email login remains as fallback below.
     """
     g_url = google_oauth_url()
 
