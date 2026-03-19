@@ -141,40 +141,47 @@ def inject_css():
     }
     .stButton > button:active{ transform:scale(.97) !important; }
 
-    /* ── SIDEBAR — overrides above (must come AFTER global rule) ─────────── */
+    /* ── SIDEBAR background & width ──────────────────────────────────────── */
     section[data-testid="stSidebar"]{
         background:#111111 !important;
         border-right:1px solid #1E1E1E !important;
         min-width:230px !important; max-width:230px !important;
     }
-    section[data-testid="stSidebar"] > div{
-        padding:0 !important;
-    }
-    /* ALL sidebar buttons: flat Notion-style, left-aligned */
-    section[data-testid="stSidebar"] .stButton > button{
+    /* NOTE: do NOT zero-out padding on the inner div — hides widgets */
+
+    /* ── SIDEBAR buttons: flat Notion-style ────────────────────────────────
+       Target both the legacy .stButton selector AND the modern
+       data-testid="baseButton-secondary" that Streamlit 1.35+ uses.        */
+    section[data-testid="stSidebar"] .stButton > button,
+    section[data-testid="stSidebar"] [data-testid="baseButton-secondary"],
+    section[data-testid="stSidebar"] [data-testid="baseButton-primary"]{
         background:transparent !important;
-        color:#999 !important;
+        color:#999999 !important;
         border:none !important;
         border-radius:6px !important;
         box-shadow:none !important;
         text-align:left !important;
         justify-content:flex-start !important;
         padding:6px 12px !important;
-        font-size:13.5px !important;
+        font-size:13px !important;
         font-weight:400 !important;
         letter-spacing:0 !important;
         transform:none !important;
         width:100% !important;
         transition:background .12s, color .12s !important;
     }
-    section[data-testid="stSidebar"] .stButton > button:hover{
+    section[data-testid="stSidebar"] .stButton > button:hover,
+    section[data-testid="stSidebar"] [data-testid="baseButton-secondary"]:hover,
+    section[data-testid="stSidebar"] [data-testid="baseButton-primary"]:hover{
         background:#1E1E1E !important;
         color:#E0E0E0 !important;
         box-shadow:none !important;
         transform:none !important;
     }
-    section[data-testid="stSidebar"] .stButton > button:active{
-        background:#252525 !important; transform:none !important;
+    section[data-testid="stSidebar"] .stButton > button:active,
+    section[data-testid="stSidebar"] [data-testid="baseButton-secondary"]:active{
+        background:#252525 !important;
+        transform:none !important;
     }
 
     /* ── Inputs ── */
@@ -327,19 +334,15 @@ def render_sidebar():
 
     with st.sidebar:
         # ── Logo + workspace name ─────────────────────────────────────────
-        # st.image with decoded bytes is the only CSP-safe way to show images
-        logo_col, name_col = st.columns([1, 3], gap="small")
-        with logo_col:
-            st.image(base64.b64decode(LOGO_B64), width=36)
-        with name_col:
-            uname = session.get('username', '')
-            st.markdown(
-                f'<div style="padding-top:6px">'
-                f'<div style="font-size:13px;font-weight:700;color:#ECECEA;line-height:1.2">Elixir</div>'
-                f'<div style="font-size:10px;color:#555">{uname}\'s workspace</div>'
-                '</div>',
-                unsafe_allow_html=True,
-            )
+        # Use PIL Image object — most reliable input type for st.image().
+        # Never use st.columns() in the sidebar for the logo: unreliable.
+        uname = session.get("username", "")
+        logo_pil = Image.open(io.BytesIO(base64.b64decode(LOGO_B64)))
+        st.image(logo_pil, width=48)
+        st.markdown(
+            f'<div style="margin:-8px 0 4px 4px">'            f'<span style="font-size:13px;font-weight:700;color:#ECECEA">Elixir</span>'            f'<span style="font-size:10px;color:#555;margin-left:6px">{uname}\'s workspace</span>'            f'</div>',
+            unsafe_allow_html=True,
+        )
 
         st.markdown('<hr style="border:none;border-top:1px solid #1E1E1E;margin:8px 0 4px"/>',
                     unsafe_allow_html=True)
@@ -537,7 +540,8 @@ def ai_study_plan(spaces):
 def screen_apikey():
     col = st.columns([1,2,1])[1]
     with col:
-        st.image(base64.b64decode(LOGO_B64), width=72)
+        _logo = Image.open(io.BytesIO(base64.b64decode(LOGO_B64)))
+        st.image(_logo, width=72)
         st.markdown('<h2 style="text-align:center;font-weight:900;margin-bottom:6px">Connect Groq API</h2>', unsafe_allow_html=True)
         st.markdown('<p style="text-align:center;color:#555;font-size:13px;margin-bottom:6px">Elixir uses the Groq free tier — no credit card needed.</p>', unsafe_allow_html=True)
         st.markdown('<p style="text-align:center;font-size:12px;color:#444;margin-bottom:20px">Get a free key at <a href="https://console.groq.com" target="_blank" style="color:#3BBFAF;font-weight:700">console.groq.com</a> → API Keys</p>', unsafe_allow_html=True)
@@ -558,7 +562,8 @@ def screen_apikey():
 def screen_welcome():
     col = st.columns([1,2,1])[1]
     with col:
-        st.image(base64.b64decode(LOGO_B64), width=84)
+        _logo = Image.open(io.BytesIO(base64.b64decode(LOGO_B64)))
+        st.image(_logo, width=84)
         st.markdown('<h1 class="hero-title">Study smarter,<br/>not harder.</h1>', unsafe_allow_html=True)
         st.markdown('<p class="hero-sub">AI-powered revision tailored to your<br/>grade, curriculum, and learning style.</p>', unsafe_allow_html=True)
         if st.button("Create account", use_container_width=True): go("signup")
