@@ -334,7 +334,7 @@ input[type=range]{width:100%;accent-color:var(--cyan);height:4px;cursor:pointer;
         <div class="sb-avatar" id="sb-avatar">Y</div>
         <div style="flex:1;text-align:left;">
           <div style="font-size:12px;font-weight:600;" id="sb-uname">Youssef</div>
-          <div style="font-size:10px;color:var(--text3);" id="sb-email">admin@elixir.app</div>
+          <div style="font-size:10px;color:var(--text3);" id="sb-email"><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="28494c454146684d444150415a06495858">[email&#160;protected]</a></div>
         </div>
         <span style="color:var(--text3);font-size:12px;">⌄</span>
       </button>
@@ -355,7 +355,7 @@ input[type=range]{width:100%;accent-color:var(--cyan);height:4px;cursor:pointer;
 
 </div>
 
-<script>
+<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
 // ═══════════════════════════════════════════════════════════════
 //  ELIXIR — Class-based JavaScript Architecture
 //  Classes: Store, Router, Sidebar, Auth, AIManager,
@@ -1100,81 +1100,83 @@ class AIManager {
 
   static async analyzeText(text, profile){
     const trunc = text.slice(0, 16000) + (text.length > 16000 ? "\n\n[...content truncated]" : "");
-    const wordCount = trunc.trim().split(/\s+/).length;
+
+    // ── Strip extraction markers before sending to AI ─────────────────────────
+    // server.py tags bold/underline runs as [BOLD: x] / [KEY TERM: x] / [UNDERLINE: x].
+    // Converting them to clean markdown here prevents the AI from echoing those
+    // literal bracket patterns back in its output (which the renderer then has
+    // to catch as a fallback — removing the root cause is cleaner).
+    const cleanedTrunc = trunc
+      .replace(/\[KEY TERM:\s*([^\]]+)\]/g, "**$1**")
+      .replace(/\[BOLD:\s*([^\]]+)\]/g,     "**$1**")
+      .replace(/\[UNDERLINE:\s*([^\]]+)\]/g, "_$1_");
+
+    // Use cleaned text for word-count so marker tokens don't inflate the count.
+    const wordCount = cleanedTrunc.trim().split(/\s+/).length;
     const isSparse  = wordCount < 300;
 
-    // ── System message ────────────────────────────────────────────────────────
-    const sysMsg = [
-      "You are a subject-matter expert writing revision notes for a",
-      profile.grade, profile.curriculum, "student.",
-      "Your notes must read exactly like a top student's hand-written notes —",
-      "factual, specific, and direct. Never describe the file or what it contains.",
-      "",
-      "FORMATTING:",
-      "- Bold key terms using **term** — NEVER use [BOLD: term] or [KEY TERM: term] syntax.",
-      "- Headings: ## for main topics, ### for sub-topics.",
-      "- Bullet points for lists of facts.",
-      "- Tables using | Col | Col | syntax for comparisons.",
-      "- No LaTeX. Plain text maths only.",
-      "",
-      "WRITING STYLE — this is the most important rule:",
-      "Every sentence must STATE a fact, not describe that a fact exists.",
-      "FORBIDDEN openers: 'This', 'The document', 'The material', 'The presentation',",
-      "'The file', 'The slides', 'This topic covers', 'This section discusses',",
-      "'X is a topic that will be explored', 'X is a significant Y that is to be Z'.",
-      "CORRECT style examples:",
-      "  BAD: 'Timbuktu is a significant location in Mali that is to be explored.'",
-      " GOOD: 'Timbuktu was the intellectual capital of the Mali Empire, home to the",
-      "        Sankore University and over 700,000 manuscripts by the 16th century.'",
-      "  BAD: 'Trade is an important aspect of Mali that students should understand.'",
-      " GOOD: 'Mali's wealth came from controlling trans-Saharan gold and salt trade.",
-      "        Mansa Musa's 1324 pilgrimage to Mecca distributed so much gold it caused",
-      "        inflation across North Africa and the Middle East.'",
-    ].join(" ");
+    // ── System message — template literal preserves line breaks ──────────────
+    // Previously used .join(" ") which collapsed all rules into one run-on
+    // paragraph; the AI could not parse "NEVER use [BOLD:]" as a distinct
+    // instruction and kept outputting those markers. Template literal fixes this.
+    const grade      = profile.grade      || "secondary";
+    const curriculum = profile.curriculum || "curriculum";
+    const sysMsg =
+`You are a subject-matter expert writing revision notes for a ${grade} ${curriculum} student.
+Your notes must read exactly like a top student's hand-written notes — factual, specific, and direct. Never describe the file or what it contains.
+
+FORMATTING RULES — follow every rule exactly:
+- Bold key terms using **term** syntax ONLY. It is FORBIDDEN to output [BOLD: term] or [KEY TERM: term] in your response.
+- Headings: ## for main topics, ### for sub-topics.
+- Bullet points for lists of facts.
+- Tables using | Col | Col | syntax for comparisons.
+- No LaTeX. Plain text maths only.
+
+WRITING STYLE — most important rule:
+Every sentence must STATE a fact, not describe that a fact exists.
+FORBIDDEN openers: 'This', 'The document', 'The material', 'The presentation', 'The file', 'The slides', 'This topic covers', 'This section discusses', 'X is a topic that will be explored', 'X is a significant Y that is to be Z'.
+CORRECT style — write the actual facts, events, people, dates, and significance:
+  BAD:  'Timbuktu is a significant location in Mali that is to be explored.'
+  GOOD: 'Timbuktu was the intellectual capital of the Mali Empire, home to over 700,000 manuscripts by the 16th century.'
+  BAD:  'Trade is an important aspect of Mali that students should understand.'
+  GOOD: 'Mali controlled trans-Saharan gold and salt trade routes. Mansa Musa distributed so much gold on his 1324 pilgrimage that it caused inflation across North Africa.'`;
 
     // ── User message branches on content density ──────────────────────────────
     let userMsg;
 
     if (isSparse) {
-      // File content is mostly images — only headings/titles were extracted.
-      // Write complete curriculum-level notes for each topic using accurate
-      // external knowledge, as if the student's teacher wrote them.
-      userMsg = [
-        "The file below contains only headings and limited text because the main content",
-        "is inside images that cannot be extracted.",
-        "",
-        "Your task: write complete, detailed study notes for each heading/topic listed.",
-        "Use accurate historical/academic knowledge appropriate for",
-        profile.grade, profile.curriculum + ".",
-        "",
-        "For EACH topic you find, write:",
-        "1. A ## heading with the topic name",
-        "2. At least 4-6 specific bullet points of real facts, dates, names, and causes",
-        "3. Any key terms in **bold**",
-        "",
-        "Do NOT write vague or circular sentences like 'X is an important concept.'",
-        "Write the actual facts, events, people, dates, and significance — as a teacher would.",
-        "",
-        "--- FILE CONTENT ---",
-        "",
-        trunc
-      ].join("\n");
+      // File is mostly images — only headings/titles were extracted.
+      // Write complete curriculum-level notes for each topic from knowledge.
+      userMsg =
+`The file below contains only headings and limited text because the main content is inside images that cannot be extracted.
+
+Your task: write complete, detailed study notes for each heading/topic listed.
+Use accurate knowledge appropriate for ${grade} ${curriculum}.
+
+For EACH topic you find, write:
+1. A ## heading with the topic name
+2. At least 4-6 specific bullet points of real facts, dates, names, and causes
+3. Any key terms in **bold** — use **term** syntax, never [BOLD: term]
+
+Do NOT write vague or circular sentences. Write the actual facts as a teacher would.
+
+--- FILE CONTENT ---
+
+${cleanedTrunc}`;
     } else {
       // File has substantial text — extract and organise it.
-      userMsg = [
-        "Write complete study notes from the material below.",
-        "",
-        "STEP 1 — Identify every distinct topic.",
-        "STEP 2 — Write one ## section per topic, named after that topic.",
-        "STEP 3 — Under each heading, write all the facts, definitions, dates, causes,",
-        "         consequences, and examples from the material. Nothing skipped.",
-        "STEP 4 — ## Key Terms: define every important term in **bold**.",
-        "STEP 5 — ## Summary: 6-10 bullet points covering all major ideas.",
-        "",
-        "--- MATERIAL ---",
-        "",
-        trunc
-      ].join("\n");
+      userMsg =
+`Write complete study notes from the material below.
+
+STEP 1 — Identify every distinct topic.
+STEP 2 — Write one ## section per topic, named after that topic.
+STEP 3 — Under each heading, write all the facts, definitions, dates, causes, consequences, and examples from the material. Nothing skipped.
+STEP 4 — ## Key Terms: define every important term in **bold** (use **term** syntax only).
+STEP 5 — ## Summary: 6-10 bullet points covering all major ideas.
+
+--- MATERIAL ---
+
+${cleanedTrunc}`;
     }
 
     return this.callGroq([
@@ -1389,8 +1391,15 @@ class SpaceManager {
     function buildTable(block){
       const rows = block.trim().split("\n").map(r=>r.trim()).filter(Boolean);
       const sepIdx = rows.findIndex(r=>/^\|[\s:\-|]+\|$/.test(r));
-      const TH = c=>`<th style="padding:8px 14px;background:var(--bg3);color:var(--cyan);font-size:12px;font-weight:700;text-align:left;border:1px solid var(--border2);">${c}</th>`;
-      const TD = c=>`<td style="padding:7px 14px;font-size:12.5px;border:1px solid var(--border2);">${c}</td>`;
+
+      // Apply inline formatting to individual table cells.
+      // Runs AFTER HTML-escaping so <strong> tags are literal HTML, not &lt;strong&gt;.
+      function inlineCell(c){
+        return renderInline(c);
+  }
+
+      const TH = c=>`<th style="padding:8px 14px;background:var(--bg3);color:var(--cyan);font-size:12px;font-weight:700;text-align:left;border:1px solid var(--border2);">${inlineCell(c)}</th>`;
+      const TD = c=>`<td style="padding:7px 14px;font-size:12.5px;border:1px solid var(--border2);">${inlineCell(c)}</td>`;
       const WRAP = inner=>`<div style="overflow-x:auto;margin:14px 0;"><table style="border-collapse:collapse;width:100%;background:var(--bg2);">${inner}</table></div>`;
       if(sepIdx >= 1){
         const thead = "<thead><tr>"+parseCells(rows[0]).map(TH).join("")+"</tr></thead>";
@@ -1402,25 +1411,40 @@ class SpaceManager {
     }
 
     // Apply HTML-escaping and inline markdown to non-table text only.
+    // KEY FIX: [BOLD:], [KEY TERM:], [UNDERLINE:] are applied AFTER HTML-escaping
+    // and convert directly to <strong>/<u>. The old code applied them BEFORE escaping
+    // which caused <u>text</u> to be immediately destroyed into &lt;u&gt;text&lt;/u&gt;.
     function renderInline(chunk){
-      // Render formatting markers from the extraction layer BEFORE HTML-escaping,
-      // so the brackets are still intact. The AI should output **bold** but as a
-      // safety net we also handle literal [BOLD: x] / [UNDERLINE: x] / [KEY TERM: x].
-      chunk = chunk
-        .replace(/\[KEY TERM:\s*([^\]]+)\]/g, "**$1**")
-        .replace(/\[BOLD:\s*([^\]]+)\]/g,     "**$1**")
-        .replace(/\[UNDERLINE:\s*([^\]]+)\]/g, "<u>$1</u>") // render before HTML escaping
-      return chunk
-        .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")
-        .replace(/\^([A-Za-z0-9.]+)/g,"<sup>$1</sup>")
-        .replace(/_([A-Za-z0-9]+)/g,"<sub>$1</sub>")
+      const esc = s =>
+        s.replace(/&/g,"&amp;")
+        .replace(/</g,"&lt;")
+        .replace(/>/g,"&gt;");
+
+      let out = esc(chunk);
+
+      // Custom markers
+      out = out
+        .replace(/\[KEY TERM:\s*([^\]]+)\]/g,"<strong>$1</strong>")
+        .replace(/\[BOLD:\s*([^\]]+)\]/g,"<strong>$1</strong>")
+        .replace(/\[UNDERLINE:\s*([^\]]+)\]/g,"<u>$1</u>");
+
+      // Markdown
+      out = out
         .replace(/\*\*([^*]+)\*\*/g,"<strong>$1</strong>")
         .replace(/\*([^*\n]+)\*/g,"<em>$1</em>")
-        .replace(/`([^`]+)`/g,'<code style="background:var(--bg3);padding:1px 5px;border-radius:3px;font-family:var(--mono);font-size:12px;">$1</code>')
+        .replace(/`([^`]+)`/g,'<code style="background:var(--bg3);padding:1px 5px;border-radius:3px;font-family:var(--mono);font-size:12px;">$1</code>');
+
+      // Headings
+      out = out
         .replace(/^## (.+)$/gm,'<h3 style="font-size:14px;font-weight:700;margin:16px 0 6px;color:var(--cyan);">$1</h3>')
-        .replace(/^### (.+)$/gm,'<h4 style="font-size:13px;font-weight:600;margin:12px 0 4px;">$1</h4>')
-        .replace(/\bcirc\b/g,"\u00b0")
-        .replace(/\n/g,"<br/>");
+        .replace(/^### (.+)$/gm,'<h4 style="font-size:13px;font-weight:600;margin:12px 0 4px;">$1</h4>');
+
+      // Sup/Sub AFTER markdown
+      out = out
+        .replace(/\^([A-Za-z0-9.]+)/g,"<sup>$1</sup>")
+        .replace(/_([A-Za-z0-9]+)/g,"<sub>$1</sub>");
+
+      return out.replace(/\n/g,"<br/>");
     }
 
     // ── Steps 2+3: split on table blocks, render each segment in isolation ─
@@ -1779,7 +1803,7 @@ class QuizManager {
       ?"BASE EVERY QUESTION on these notes — do not invent questions outside this material:\n\n"+notesText.slice(0,8000)
       :"Topic: "+spaceName;
     var prompt=[
-      "Generate exactly 5 quiz questions for a student studying: "+spaceName+".",
+      "Generate exactly 5 quiz questions for a student studying: "+spaceName+" using ONLY the provided notes.",
       "QUESTION FORMAT RULES FOR THIS SUBJECT: "+schema,
       "SPECIFICITY RULES (critical):",
       "- Every question MUST target ONE specific angle: economic, political, social, cultural, geographic, causal, military, or consequence.",
@@ -2260,11 +2284,8 @@ class StudyPlanManager {
 // ═══════════════════════════════════════════════════════════════
 class App {
   static init(){
-    // Kick off live model discovery immediately — runs in the background,
-    // replaces _MODEL_CHAIN before any real API call is made.
     AIManager.refreshAvailableModels();
 
-    // Restore notes from store on load
     const session=Store.getSession();
     if(session){
       const spaces=Store.getSpaces(session.id);
@@ -2279,9 +2300,9 @@ class App {
   }
 }
 
-// ── Boot ───────────────────────────────────────────────────────
-document.addEventListener("DOMContentLoaded",()=>App.init());
-</script>
+// ── Boot ─────────
+document.addEventListener("DOMContentLoaded", App.init);
 
+</script>
 </body>
 </html>
