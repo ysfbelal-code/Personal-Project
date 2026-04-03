@@ -1,0 +1,2287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0"/>
+<meta name="mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<title>Elixir — AI Study Assistant</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<style>
+/* ═══════════════════════════════════════════════════════════════
+   ELIXIR — Design System
+   Dark, refined, Notion-inspired. DM Sans + DM Mono.
+═══════════════════════════════════════════════════════════════ */
+:root{
+  --bg:#0A0A0A; --bg2:#111; --bg3:#181818; --bg4:#1E1E1E;
+  --border:#242424; --border2:#2A2A2A;
+  --text:#ECECEA; --text2:#888; --text3:#555;
+  --cyan:#3BBFAF; --cyan2:#2AA99B; --cyan-dim:#3BBFAF18;
+  --violet:#8B5CF6; --indigo:#6366F1;
+  --amber:#F59E0B; --red:#ef4444; --green:#16a34a;
+  --sidebar-w:230px;
+  --font:'DM Sans',sans-serif;
+  --mono:'DM Mono',monospace;
+  --radius:10px; --radius-sm:6px; --radius-lg:14px;
+  --transition:.15s ease;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--font);font-size:14px;line-height:1.5;overflow-x:hidden;}
+button{font-family:var(--font);cursor:pointer;border:none;outline:none;}
+input,select,textarea{font-family:var(--font);outline:none;}
+a{color:var(--cyan);text-decoration:none;}
+img{display:block;}
+
+/* ── Layout ── */
+#app{display:flex;height:100vh;overflow:hidden;}
+#sidebar{width:var(--sidebar-w);flex-shrink:0;background:var(--bg2);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow-y:auto;transition:transform var(--transition);}
+#main{flex:1;overflow-y:auto;padding:32px 40px;}
+@media(max-width:768px){
+  #sidebar{position:fixed;top:0;left:0;bottom:0;z-index:100;transform:translateX(-100%);box-shadow:4px 0 24px rgba(0,0,0,.5);}
+  #sidebar.open{transform:translateX(0);}
+  #main{padding:16px;}
+}
+#overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:99;}
+#overlay.open{display:block;}
+
+/* ── Sidebar internals ── */
+.sb-header{display:flex;align-items:center;gap:10px;padding:16px 14px 12px;border-bottom:1px solid var(--border);}
+.sb-logo{width:32px;height:32px;object-fit:contain;flex-shrink:0;}
+.sb-title{font-size:13.5px;font-weight:700;color:var(--text);}
+.sb-sub{font-size:10px;color:var(--text3);margin-top:1px;}
+
+.sb-section{padding:8px 8px 4px;}
+.sb-label{font-size:10px;font-weight:600;color:var(--text3);letter-spacing:.08em;text-transform:uppercase;padding:8px 8px 4px;}
+.sb-btn{display:flex;align-items:center;gap:8px;width:100%;padding:7px 10px;border-radius:var(--radius-sm);background:transparent;color:var(--text2);font-size:13px;font-weight:400;border:none;cursor:pointer;transition:background var(--transition),color var(--transition);text-align:left;}
+.sb-btn:hover,.sb-btn.active{background:var(--bg3);color:var(--text);}
+.sb-btn-icon{font-size:14px;width:18px;text-align:center;flex-shrink:0;}
+.sb-new{display:flex;align-items:center;gap:8px;width:100%;padding:7px 10px;border-radius:var(--radius-sm);background:var(--cyan-dim);color:var(--cyan);font-size:13px;font-weight:600;border:1px solid #3BBFAF33;cursor:pointer;transition:background var(--transition);margin-bottom:2px;}
+.sb-new:hover{background:#3BBFAF28;}
+.sb-divider{height:1px;background:var(--border);margin:6px 8px;}
+.sb-footer{margin-top:auto;border-top:1px solid var(--border);padding:8px;}
+.sb-user-btn{display:flex;align-items:center;gap:10px;width:100%;padding:8px 10px;border-radius:var(--radius-sm);background:transparent;color:var(--text);border:none;cursor:pointer;font-size:13px;transition:background var(--transition);}
+.sb-user-btn:hover{background:var(--bg3);}
+.sb-avatar{width:26px;height:26px;border-radius:50%;background:var(--cyan-dim);color:var(--cyan);font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.sb-signout{display:flex;align-items:center;gap:8px;width:100%;padding:7px 10px;border-radius:var(--radius-sm);background:transparent;color:var(--text3);font-size:12px;border:none;cursor:pointer;transition:color var(--transition),background var(--transition);}
+.sb-signout:hover{background:var(--bg3);color:#ef4444;}
+
+/* ── Buttons ── */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:10px 20px;border-radius:var(--radius);font-size:14px;font-weight:600;cursor:pointer;transition:all var(--transition);border:none;font-family:var(--font);}
+.btn-primary{background:linear-gradient(135deg,var(--cyan),var(--cyan2));color:#fff;box-shadow:0 2px 12px #3BBFAF28;}
+.btn-primary:hover{transform:translateY(-1px);box-shadow:0 6px 20px #3BBFAF40;}
+.btn-primary:active{transform:scale(.97);}
+.btn-ghost{background:transparent;color:var(--text2);border:1.5px solid var(--border2);}
+.btn-ghost:hover{background:var(--bg3);color:var(--text);border-color:var(--border2);}
+.btn-full{width:100%;}
+.btn-sm{padding:7px 14px;font-size:12.5px;}
+.btn-danger{background:transparent;color:var(--red);border:1.5px solid var(--red);}
+.btn-danger:hover{background:#ef444418;}
+
+/* ── Inputs ── */
+.input-group{display:flex;flex-direction:column;gap:5px;margin-bottom:14px;}
+.input-label{font-size:12px;font-weight:600;color:var(--text2);}
+.input{width:100%;padding:10px 14px;background:#030305;color:var(--text);border:1.5px solid #18182A;border-radius:var(--radius);font-size:14px;font-family:var(--font);transition:border-color var(--transition),box-shadow var(--transition);}
+.input:focus{border-color:var(--cyan);box-shadow:0 0 0 3px #3BBFAF22;}
+.input::placeholder{color:var(--text3);}
+.select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23555' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;padding-right:36px;cursor:pointer;}
+
+/* ── Cards ── */
+.card{background:var(--bg2);border-radius:var(--radius-lg);border:1px solid var(--border);padding:20px;}
+.space-card{background:var(--bg2);border-radius:var(--radius);border:1px solid var(--border);cursor:default;transition:background var(--transition),border-color var(--transition),transform var(--transition);}
+.space-card:hover{background:var(--bg3);border-color:var(--border2);transform:translateY(-2px);}
+.tip-box{background:#0E0A1E;border-left:3px solid var(--violet);border-radius:0 var(--radius) var(--radius) 0;padding:12px 14px;font-size:13px;line-height:1.65;color:#C4B5FD;}
+.analysis-box{background:#0B0B1C;border-radius:var(--radius);padding:20px;font-size:13.5px;line-height:1.85;border:1px solid #1A1A3A;border-left:3px solid var(--indigo);color:#E0E0FF;white-space:pre-wrap;}
+.badge{display:inline-flex;align-items:center;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700;}
+.badge-cyan{background:var(--cyan-dim);color:var(--cyan);}
+.badge-green{background:#16a34a18;color:var(--green);}
+.badge-amber{background:#F59E0B18;color:var(--amber);}
+.badge-red{background:#ef444418;color:var(--red);}
+
+/* ── Auth screens ── */
+.auth-wrap{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:24px;}
+.auth-box{width:100%;max-width:400px;display:flex;flex-direction:column;gap:0;}
+.auth-logo{display:flex;flex-direction:column;align-items:center;margin-bottom:28px;gap:10px;}
+.auth-logo img{width:72px;height:72px;object-fit:contain;}
+.auth-logo-name{font-size:28px;font-weight:700;color:#fff;letter-spacing:-0.5px;}
+.auth-title{font-size:22px;font-weight:700;margin-bottom:6px;}
+.auth-sub{font-size:13px;color:var(--text2);margin-bottom:24px;}
+.divider-line{display:flex;align-items:center;gap:12px;margin:16px 0;color:var(--text3);font-size:12px;}
+.divider-line::before,.divider-line::after{content:'';flex:1;height:1px;background:var(--border);}
+
+/* Google button */
+.google-btn{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;padding:10px 20px;border-radius:var(--radius);background:#fff;color:#3c4043;border:1.5px solid #dadce0;font-size:14px;font-weight:600;cursor:pointer;font-family:var(--font);transition:box-shadow var(--transition);}
+.google-btn:hover{box-shadow:0 2px 8px rgba(0,0,0,.25);}
+.google-btn svg{flex-shrink:0;}
+
+/* ── Password strength ── */
+.pw-bar{height:4px;background:var(--bg3);border-radius:4px;overflow:hidden;margin:6px 0 2px;}
+.pw-fill{height:100%;border-radius:4px;transition:width .3s,background .3s;}
+.pw-label{font-size:11px;font-weight:600;}
+
+/* ── Progress bar ── */
+.progress-bar{height:4px;background:var(--bg3);border-radius:4px;overflow:hidden;margin-bottom:20px;}
+.progress-fill{height:100%;background:linear-gradient(90deg,var(--cyan),#4ECFC0);border-radius:4px;transition:width .3s;}
+
+/* ── Onboard subjects ── */
+.subject-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px;}
+.subject-btn{display:flex;align-items:center;gap:8px;padding:10px 12px;border-radius:var(--radius-sm);background:var(--bg2);border:1.5px solid var(--border);color:var(--text2);font-size:13px;cursor:pointer;transition:all var(--transition);font-family:var(--font);}
+.subject-btn:hover{border-color:var(--border2);color:var(--text);}
+.subject-btn.sel{background:#0B2222;border-color:var(--cyan);color:var(--cyan);}
+.subject-btn .check{margin-left:auto;font-size:12px;display:none;}
+.subject-btn.sel .check{display:block;}
+
+/* ── Slider ── */
+.slider-row{display:flex;flex-direction:column;gap:6px;margin-bottom:14px;}
+.slider-label{display:flex;justify-content:space-between;align-items:center;font-size:12.5px;}
+.slider-name{color:var(--text);}
+.slider-val{font-size:11px;font-weight:700;}
+input[type=range]{width:100%;accent-color:var(--cyan);height:4px;cursor:pointer;}
+
+/* ── Dashboard grid ── */
+/* dash-grid: inner spaces grid */
+.dash-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;}
+@media(max-width:900px){.dash-grid{grid-template-columns:1fr 1fr;}}
+@media(max-width:500px){.dash-grid{grid-template-columns:1fr;}}
+/* two-col: outer left/right dashboard columns.
+   Sidebar is 230px wide. At 1100px viewport content area is ~750px — comfortable for 3fr 2fr.
+   Below 1100px (tablets/small laptops where sidebar overlays) collapses to single column. */
+/* two-col: dashboard outer columns. align-items:stretch ensures both cols are same height. */
+.two-col{display:grid;grid-template-columns:3fr 2fr;gap:28px;align-items:stretch;}
+.two-col>div{display:flex;flex-direction:column;}
+@media(max-width:1100px){.two-col{grid-template-columns:1fr;}}
+
+/* ── Headings ── */
+.page-title{font-size:22px;font-weight:700;margin-bottom:4px;}
+.page-sub{font-size:13px;color:var(--text2);margin-bottom:20px;}
+.section-title{font-size:15px;font-weight:700;margin-bottom:14px;}
+.divider{border:none;border-top:1px solid var(--border);margin:16px 0;}
+
+/* ── Notes ── */
+.note-card{border:1px solid var(--border);border-radius:var(--radius);background:var(--bg2);overflow:hidden;margin-bottom:10px;}
+.note-header{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;cursor:pointer;background:var(--bg3);}
+.note-header:hover{background:var(--bg4);}
+.note-title{font-size:13px;font-weight:600;color:var(--text);}
+.note-meta{font-size:11px;color:var(--text3);}
+.note-body{padding:16px;border-top:1px solid var(--border);display:none;}
+.note-body.open{display:block;}
+.note-actions{display:flex;gap:8px;margin-top:12px;}
+
+/* ── Modal ── */
+.modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:200;align-items:center;justify-content:center;padding:20px;}
+.modal-bg.open{display:flex;}
+.modal{background:var(--bg2);border-radius:var(--radius-lg);border:1px solid var(--border);width:100%;max-width:420px;padding:24px;display:flex;flex-direction:column;gap:16px;}
+.modal-title{font-size:17px;font-weight:700;}
+
+/* ── Upload zone ── */
+.upload-zone{border:2px dashed var(--border);border-radius:var(--radius);padding:32px;text-align:center;cursor:pointer;transition:border-color var(--transition),background var(--transition);}
+.upload-zone:hover,.upload-zone.drag{border-color:var(--cyan);background:#3BBFAF0A;}
+.upload-zone input{display:none;}
+.upload-icon{font-size:32px;margin-bottom:8px;opacity:.4;}
+.upload-text{font-size:13px;color:var(--text2);}
+.upload-hint{font-size:11px;color:var(--text3);margin-top:4px;}
+
+/* ── Progress ── */
+.progress-row{margin:12px 0;}
+.progress-track{height:4px;background:var(--bg3);border-radius:4px;overflow:hidden;}
+.progress-thumb{height:100%;background:linear-gradient(90deg,var(--amber),#FCD34D);border-radius:4px;transition:width .3s;}
+.progress-msg{font-size:12px;color:var(--text2);margin-top:4px;}
+
+/* ── Spinner ── */
+.spinner{width:20px;height:20px;border:2px solid var(--border);border-top-color:var(--cyan);border-radius:50%;animation:spin .7s linear infinite;display:inline-block;}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ── Tip nav ── */
+.tip-nav{display:flex;align-items:center;justify-content:space-between;margin-top:8px;}
+.tip-nav button{background:transparent;border:1px solid var(--border);color:var(--text2);padding:4px 10px;border-radius:var(--radius-sm);font-size:12px;cursor:pointer;transition:all var(--transition);}
+.tip-nav button:hover{border-color:var(--border2);color:var(--text);}
+.tip-counter{font-size:11px;color:var(--text3);}
+
+/* ── Subjects list ── */
+.subject-row{display:flex;align-items:center;justify-content:space-between;padding:5px 0;}
+.subject-row-name{font-size:12px;color:#CCC;}
+.subject-row-badge{font-size:10px;font-weight:700;padding:2px 7px;border-radius:20px;}
+
+/* ── Toast ── */
+.toast{position:fixed;bottom:24px;right:24px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);padding:12px 16px;font-size:13px;color:var(--text);box-shadow:0 8px 24px rgba(0,0,0,.4);z-index:999;transform:translateY(100px);opacity:0;transition:all .25s ease;}
+.toast.show{transform:translateY(0);opacity:1;}
+.toast.success{border-color:var(--cyan);color:var(--cyan);}
+.toast.error{border-color:var(--red);color:var(--red);}
+
+/* ── Animations ── */
+.fade-in{animation:fadeIn .3s ease both;}
+@keyframes fadeIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+
+/* ── Misc ── */
+.hidden{display:none!important;}
+.text-center{text-align:center;}
+.mt-8{margin-top:8px;} .mt-12{margin-top:12px;} .mt-16{margin-top:16px;} .mt-24{margin-top:24px;}
+.mb-8{margin-bottom:8px;} .mb-12{margin-bottom:12px;} .mb-16{margin-bottom:16px;}
+.gap-8{gap:8px;} .flex{display:flex;} .flex-col{flex-direction:column;} .items-center{align-items:center;} .justify-between{justify-content:space-between;}
+.text-sm{font-size:12px;} .text-xs{font-size:11px;} .text-muted{color:var(--text2);} .text-xs.text-muted{color:var(--text3);}
+.font-bold{font-weight:700;} .font-medium{font-weight:500;}
+.back-link{background:transparent;border:none;color:var(--text2);font-size:13px;cursor:pointer;display:flex;align-items:center;gap:6px;padding:0;margin-bottom:20px;font-family:var(--font);transition:color var(--transition);}
+.back-link:hover{color:var(--text);}
+
+/* ── Landing page ── */
+.landing-page{margin:-32px -40px;min-height:100vh;display:flex;flex-direction:column;background:var(--bg);}
+@media(max-width:768px){.landing-page{margin:-16px -16px;}}
+.landing-header{display:flex;align-items:center;justify-content:space-between;padding:20px 48px;border-bottom:1px solid var(--border);}
+@media(max-width:640px){.landing-header{padding:14px 20px;}}
+.landing-logo-wrap{display:flex;align-items:center;gap:10px;}
+.landing-logo-img{width:32px;height:32px;object-fit:contain;}
+.landing-logo-text{font-size:17px;font-weight:700;color:var(--cyan);letter-spacing:-0.2px;}
+.landing-nav{display:flex;align-items:center;gap:12px;}
+.landing-nav-link{background:transparent;border:none;color:var(--text2);font-size:13px;font-weight:600;cursor:pointer;font-family:var(--font);transition:color var(--transition);padding:6px 10px;}
+.landing-nav-link:hover{color:var(--text);}
+.landing-nav-cta{background:linear-gradient(135deg,var(--cyan),var(--cyan2));color:#fff;border:none;font-size:13px;font-weight:700;padding:9px 20px;border-radius:var(--radius-sm);cursor:pointer;font-family:var(--font);transition:all var(--transition);box-shadow:0 2px 12px #3BBFAF28;}
+.landing-nav-cta:hover{transform:translateY(-1px);box-shadow:0 4px 18px #3BBFAF44;}
+.landing-hero{flex:1;display:flex;align-items:center;justify-content:center;gap:0;padding:40px 48px;}
+@media(max-width:768px){.landing-hero{flex-direction:column;padding:32px 24px;gap:36px;text-align:center;}}
+.landing-left{flex:1;max-width:540px;display:flex;flex-direction:column;gap:22px;}
+.landing-eyebrow{font-size:11px;font-weight:700;color:var(--cyan);letter-spacing:.15em;text-transform:uppercase;}
+.landing-title{font-size:clamp(38px,5.5vw,68px);font-weight:700;color:var(--text);line-height:1.05;letter-spacing:-0.03em;}
+.landing-title span{color:var(--cyan);}
+.landing-desc{font-size:16px;color:var(--text2);line-height:1.72;max-width:440px;}
+@media(max-width:768px){.landing-desc{max-width:100%;}}
+.landing-cta{display:inline-flex;align-items:center;gap:8px;background:linear-gradient(135deg,var(--cyan),var(--cyan2));color:#fff;border:none;font-size:15px;font-weight:700;padding:13px 28px;border-radius:var(--radius);cursor:pointer;font-family:var(--font);transition:all var(--transition);box-shadow:0 4px 20px #3BBFAF30;width:fit-content;}
+.landing-cta:hover{transform:translateY(-2px);box-shadow:0 8px 28px #3BBFAF50;}
+.landing-cta:active{transform:scale(.97);}
+.landing-right{flex:0 0 380px;display:flex;align-items:center;justify-content:center;padding:0 24px;}
+@media(max-width:900px){.landing-right{flex:0 0 260px;}}
+@media(max-width:768px){.landing-right{flex:0 0 auto;width:200px;padding:0;}}
+.landing-flask{width:100%;height:auto;object-fit:contain;filter:drop-shadow(0 0 48px #3BBFAF40) drop-shadow(0 0 96px #3BBFAF1A);}
+.landing-footer{padding:18px 48px;border-top:1px solid var(--border);text-align:center;}
+.landing-footer p{font-size:11px;color:var(--text3);}
+
+/* ── Auth modal overlay (over landing page) ── */
+.auth-modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.72);z-index:300;display:none;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(6px);}
+.auth-modal-overlay.open{display:flex;}
+.auth-modal-box{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-lg);width:100%;max-width:400px;max-height:92vh;overflow-y:auto;box-shadow:0 24px 60px rgba(0,0,0,.6);}
+.auth-modal-head{display:flex;align-items:center;justify-content:space-between;padding:18px 22px 0;}
+.auth-modal-close{background:transparent;border:none;color:var(--text3);font-size:20px;cursor:pointer;line-height:1;transition:color var(--transition);}
+.auth-modal-close:hover{color:var(--text);}
+.auth-tabs{display:flex;border-bottom:1px solid var(--border);margin:12px 22px 0;}
+.auth-tab{background:transparent;border:none;border-bottom:2px solid transparent;color:var(--text2);font-size:13px;font-weight:600;padding:8px 14px;cursor:pointer;font-family:var(--font);transition:all var(--transition);margin-bottom:-1px;}
+.auth-tab.active{color:var(--cyan);border-bottom-color:var(--cyan);}
+.auth-modal-body{padding:16px 22px 22px;}
+
+/* ── Calendar widget ── */
+.cal-widget{margin-top:28px;}
+.cal-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}
+.cal-title{font-size:14px;font-weight:700;color:var(--text);}
+.cal-nav-btn{background:transparent;border:1px solid var(--border);color:var(--text2);padding:3px 9px;border-radius:var(--radius-sm);cursor:pointer;font-size:13px;transition:all var(--transition);}
+.cal-nav-btn:hover{background:var(--bg3);color:var(--text);}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;}
+.cal-dow{text-align:center;font-size:10px;font-weight:700;color:var(--text3);padding:4px 0;}
+.cal-day{text-align:center;padding:6px 2px;border-radius:var(--radius-sm);cursor:pointer;font-size:12px;color:var(--text2);position:relative;transition:background var(--transition);}
+.cal-day:hover:not(.empty){background:var(--bg3);color:var(--text);}
+.cal-day.today{background:var(--cyan-dim);color:var(--cyan);font-weight:700;}
+.cal-day.has-exam::after{content:"";display:block;width:5px;height:5px;background:var(--amber);border-radius:50%;margin:2px auto 0;}
+.cal-day.empty{cursor:default;pointer-events:none;}
+.cal-add-btn{display:flex;align-items:center;justify-content:center;gap:6px;background:transparent;border:1px dashed var(--border);color:var(--text3);padding:6px 12px;border-radius:var(--radius-sm);cursor:pointer;font-size:12px;font-family:var(--font);margin-top:8px;width:100%;transition:all var(--transition);}
+.cal-add-btn:hover{border-color:var(--cyan);color:var(--cyan);background:var(--cyan-dim);}
+.exam-chip{display:inline-flex;align-items:center;gap:6px;background:#F59E0B18;border:1px solid #F59E0B44;color:var(--amber);padding:3px 9px;border-radius:20px;font-size:11px;font-weight:600;margin:3px 3px 0 0;}
+.exam-chip button{background:none;border:none;color:var(--amber);cursor:pointer;font-size:13px;line-height:1;padding:0 0 0 2px;opacity:.6;}
+.exam-chip button:hover{opacity:1;}
+.exam-list{display:flex;flex-wrap:wrap;margin-top:8px;}
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════ TOAST ═══════════════════ -->
+<div class="toast" id="toast"></div>
+
+<!-- ═══════════════════ APP SHELL ═══════════════════ -->
+<div id="app">
+
+  <!-- ── Sidebar ── -->
+  <div id="sidebar">
+    <div class="sb-header">
+      <img class="sb-logo" id="sb-logo" src="data:image/png;base64,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" alt="Elixir"/>
+      <div>
+        <div class="sb-title">Elixir</div>
+        <div class="sb-sub" id="sb-workspace">workspace</div>
+      </div>
+    </div>
+
+    <div class="sb-section">
+      <button class="sb-new" onclick="Sidebar.close();Router.go('new_space')">
+        <span>＋</span> New Space
+      </button>
+    </div>
+
+    <div class="sb-divider"></div>
+
+    <div class="sb-section">
+      <button class="sb-btn" id="sb-dash" onclick="Sidebar.close();Router.go('dashboard')">
+        <span class="sb-btn-icon">⊙</span> Dashboard
+      </button>
+      <button class="sb-btn" id="sb-plan" onclick="Sidebar.close();StudyPlanManager.openScreen()">
+        <span class="sb-btn-icon">📅</span> Study Plan
+      </button>
+      <button class="sb-btn" id="sb-quiz" onclick="Sidebar.close();Router.go('quiz')">
+        <span class="sb-btn-icon">✏️</span> Quiz
+      </button>
+    </div>
+
+    <div class="sb-divider"></div>
+    <div class="sb-label">Spaces</div>
+    <div class="sb-section" id="sb-spaces"></div>
+
+    <div class="sb-footer">
+      <button class="sb-user-btn" id="sb-user-btn" onclick="Sidebar.toggleUserMenu()">
+        <div class="sb-avatar" id="sb-avatar">Y</div>
+        <div style="flex:1;text-align:left;">
+          <div style="font-size:12px;font-weight:600;" id="sb-uname">Youssef</div>
+          <div style="font-size:10px;color:var(--text3);" id="sb-email">admin@elixir.app</div>
+        </div>
+        <span style="color:var(--text3);font-size:12px;">⌄</span>
+      </button>
+      <div id="user-menu" class="hidden" style="background:var(--bg3);border-radius:var(--radius-sm);padding:4px;margin-top:4px;">
+        <button class="sb-signout" onclick="Auth.signOut()">Sign out</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Overlay (mobile) ── -->
+  <div id="overlay" onclick="Sidebar.close()"></div>
+
+  <!-- ── Main ── -->
+  <div id="main">
+    <!-- Screen container -->
+    <div id="screen"></div>
+  </div>
+
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════
+//  ELIXIR — Class-based JavaScript Architecture
+//  Classes: Store, Router, Sidebar, Auth, AIManager,
+//           SpaceManager, StudyPlanManager, Dashboard, App
+// ═══════════════════════════════════════════════════════════════
+
+const LOGO = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAASwAAAEsCAYAAAB5fY51AABUXElEQVR42u29eZxcZ3Xn/TvPvbfWrqrete/eQDbGOIAJSyQCY2KWGBKZlyEkM0wGCAQG3kAgGYLamSTAQJIhMy+JJxOSkGGT2BezW2KxbMuSLVuSN1lSd0vqfat9ufd5zvtH3dsutaqqq2VJ3S2d7+dTn5a6q27d7fndc85znnMAQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQRAEQbjCITkFVxbMTP5158viBiZiuaqCIAiCWFjColpXVn9/f8/GjRvV5WBhDQwMYP/+/WN33HGHlqt7ZWDLKbgy3EAi4snJyXg4HP45gLXGGKOUWq4PLAZAyWRSh8PhGwGc3Llzp7rzzjuNXG0RLOEy4Z577nFf9apXpQBElVLL3z0ggmVZ4iWIYAmXI5FIhDzP8wCwMYaXu4VljNGlUkkurAiWcDm7h3gmdrmcrROCxGCvOJScgiuH4eFhGHP5hHmYGeVyWS6sCJZwOfLEE0+w1lrylgQRLGHp84IXvMAxxjiXk4UlMSwRLOHygwDgxhtv7AbQCQDzzRIyL54hxswtff9i7qOwOEjQ/Qqj1RgW0eLFsxfy3RLDEsESLlNKpRLi8fi873NdFydOnFgU0SIiuK6Lnp4e9PT0gJkb7odYWCJYglhYMMZg1apViMfjl1wUiAi5XA4DAwPo6ekRl1AQwbpSKZfLLQkWMyMUCsGyrEXZz1AohFAo1NJ+5vN5Ua0rCAm6X2Euoda6oaUVWCyZTGZ29m0xrBhmRitLh4iIHMeRh64IlnC5shxm34hoPsEiALqnp0e98Y1vvAkAtm3bJveyCJZwubmE1aWE8wvGYs8StmBhsVIKlmV1+YIlF1gES7icCIfDSCQS1QvfRBAWU6wCWo2fVSoVT66sCJZwmRKNRlu2cpa4hQUAMMYQAOzdu1curgiWcLm5hEHQfamK1eyN2aJgua4rFRtEsITLlSCg3iy9YSnEsFp1CcvlsriEIljC5URfXx+AalrDckm2bFUwLcvqlCssgiVc5hbWfGIRCMZiLc8JXML5vt+27dVyVUWwhMuQVjPdFzuGNZ9LWCu6ruuKSyiCJVyO1Ga6t2phLZZgtRp011pL0F0ES7gcSaVSiEQiy2JfWw26tyLAggiWsIwIgu4rVqxAMpmsXvgmFoxSatEtrEql0tJ7W8ncF0SwhGXqErYSwyoWi4vWrCKof5VOp1uaIGhV2AQRLGGZ0ao7mM1mZy2XxUqDaDWGJTWxRLCEy9jCagXLslpOK7iYbmErYiUuoQiWcJkRxLBatUiWQhv7VgVLEMEShCWxnnC+fVNKobe3Vy6WCJZwRd8Ui2xhLbBag1wwESzhShesxYxdLcTVkxiWCJZwmVIul5d83CfYv1YFU+JYIljCFY5lWUs6hiWIYAlXAIVCgVuxSFpNf7jYrqG4hIII1hVMe3t7RCk1rxJkMpllI1gSdBfBEi4z+vr6CAA6OztXRqNRBcAwMzVzCZeDWIlgiWAJlyF79+4lAAiFQqt9MWrqFy6FGNYCarrLBRbBEi5TEr4Q8XxisZSX5NSyYsUKANKXUARLuOzQWptWSyQvFgtNawj6LAoiWMJlhjGmpbylxXYJF5JbJTEsESzhMqXVeliL6RIG9bCmp6dbik9J4qgIlnCFW1iLXW10IZaTWFgiWMJliuu6C27ztWg3ppJbUxDBurIvdouu3mLnYS1kX8XCEsESLlNSqRTC4fC8bt9iN6FYbLdUEMESlgDlcrlpW6zF7PYsgiWIYAlnEQ6HYdt2S2KxXCwscQlFsITLlFYHt1hYggiWsOi02iVZYliCCJawbCyspYC4hIIIllhYl51gCSJYwhVgYTVLIF0KLqGIliCCJSwboWh1Aba4hFcWtpwCcQnPVSzABCWzuPr/i8YcQy9Y/JzL51EulxGLxeTCCSJYV7pL2AyHlH9j8MUVK8wVQwZYA1DwCkVU3ApiEMESRLDEwmpg7BCAYaMxWikiqizwRTexnvlmzQxoA9vyMBm2sCUUnv+TzCG5siJYwmWI53lNY5aGGRYRjpTL+KdCGgkrVBWRSwQBMEQo24S1Xhmvap6VTwCglFob7L5cYREs4XK62LZdnB3tTQLa08UKVDgECwTCpQvAEwFaAVFWKLhAqVJBzHEa2XjkW43X+ccjgiWCJVwObNu2TTNz7Kmnnrq9drCfKxjVX48X8qBoAoYI5hJPGCpWcAHEO1JwHKexNWgMlFKIRCLqzJkzsbVr1xak+ujlj6Q1XAkXWSkGAMuynu8Pdmp0M3iVCoYrFdiWwqUe/0QEwwa2bWFaa4zn89U/1NkRIlIA9OrVq6/u7+9/CTODmS252iJYwjKGmZUxhn7xi1/c1NvbuwaA8Qf72e/zfxbcCjLxKCxlYZ5uYBfNL7SNQYaAp3PVDtSmsTXI0WhUJZPJ2+VKi2AJlwF79+5VRMTxePx1iUTC8QWrnrABAE5ls5gkA5vokstVdR8YRntANIRTXqWl+zccDm/fuXOnggTeRbCEZW1d0bZt2/Tdd98dTiaTv9XsmgfidKRYhIlHwdqrRsEXAQNGyA7hUCEP9jyoBvvBzAoAd3R0POfVr37184iId+3aJW6hCJawHNm9e7ciIu7o6HhhT0/PVQCMP8jPvRGIwJ7GgUIBYScCWsx10swIKRunlY3xXA6E+msffUtRd3d3q0gkchsA9PT0yAJEESxhObJjxw4wM4XD4bemUilq5g4SgLFcDv0WECYLvIjDnkGwAKTjIRycmfStrub3cCwW+52dO3fa/oyoiJYIlrDM3MEQEenTp0/f0NnZ+Rbf67Pqu2BVDkxPoxKNguBBL2ZaEzGgPYSicdybyYI93TBvzLcYzerVq697zWtes91/n9zXIljCMnMHNTNH0+n0b6xYsSJVHdv1LQ9FBGiNX+bSsCIRQBtYi3xrGDAipHAiFMJkIQ/V3C00qVSKHMd5MwDeu3evWFgiWMJycwcBtDPzqyKRSO3gPlsYfHdwYGoaT9s2HFvBI/bXEC6mWwgoGGQjYdw7PtrULTTGWADQ3d19+/79+9f5bmFU7gIRLGF5uIOKiPQDDzzQ29XVtb3GdaorDABwX3oK+bYobG2qv+TFvi0J0AbRSAh7K3mwpxvOFiqlCIBev359Vzgc/j0i4kwmI2UeRLCE5UQ8Hv/oypUrLQC6UQxIEcEtV3B/uYxoJAJjltDyFkVQtoVBK4Rjk+PVxdFN0u+JiB3HedPo6GhbKBRK+kIt7qEIlrCErSsCwPfff38yHA7/ChE1rA8TuINHJ8dwPKQQJgWmpSBYDDDDGIZihXIsgh9NjZ1lEdY5bguAWbdu3U0DAwPbI5HIsIiVCJawDK4pEXEkEnnPli1bNgLQjdxBEAHM+MH0DJy2LpDRAJbIGKdqegNrjVgkgoOskSvkYTXIwA8syLa2NkQikd8FEAJAwTpKQQRLWJrWldm1a5cVjUbfqpQKBKzee6EAjGXSeJgMIiFaWu5gjXQ6AMaiCdw7NjZrGTa5n3nlypW333///WsAsDFG7nERLGGJQkop3rJly23r1q3biiaZ7cGM2w/HR5BPJqBYYyk6UEwM1gahRBQ/zOZg3MZLdXyN0z09PbbjOO8iIt67d6/c4yJYwlK0rojIGGPaHMfZGY1Gz3KVznovAIsIxWIRP8vnEXOi0Hrp3gqGgRgsPB2x8PjkZNPgu5/iwCtWrPitkydPvmTbtm0hiWWJYAlLjN27dytmVvv373/B6tWrb2xqXfmD/cGJCYwmErCV8mXMq3HEqplQ5DeiWNQhTwAZAPEYfjg5Xq2P1TzFwaxZs2ZNPp9/P6qxLJktFMESlhI7duwgAFYoFHpvV1eXjQbrBoFqKoPnufj+TBoqkYBG2R//Np6ZhyMQNAwIbABrkcNbHlzEIzEcIIOxTLZh5vszh0gcj8dff+rUqbW+CotgiWAJS8EV9K0HNTAw8ObVq1e/vvprthtZVwTg8fExHHGANmWBvMDqeuZ2YAJKYISMhTAxCswgKIDU4ox9ZijtIduWwo+C4HuTcwLArFy5Mjo+Pv7vlFJGYlkiWMISgIh49+7dSilVKZVKv9Pb2xtGk0TR6kg3+P5MBlZ7B9grA1UvalYCCIBnGDfaMfxJRxv+vL0bvxaJwRgGL9KaaAagtYdoNIw9bh75QqFaEqf+OQEAikQiSCaTf3T48OHO7du3e+IWLn+kCcVlYGEBMD09PWsTicQLUZ3Kt/yUhnOsK0WEkxNTuJ81YiELxj17yBMADaADwO/FEthkM5g1/lNbAsOehxOePo+bhgFWID8plckPQ8EPRTGDZ702biTMIFIIgzEWb8P3zgzijquvg/Zbk9U5L4qI9IYNG1YfPnz4Dmb+4u7du/PMbIhIcrPEwhIWg/7+/jARcXt7+7tXr17dCUD7gee6VgoA/HByBDqZbJg2bhiIWjbabUaJCXnSiCtCylLQYKiFViJmAiwDo4CSYRhNCIFgQ6GsgZKvU8RNOk0zgZmhWSMUi+KnpSzK5VLDFIfAynIch2Ox2B8AMG9+85u13DFiYQmLxJEjR0IbN260nnzyyTXRaPQdzawr9i2RiXQGP+EK4pEwyDXVZPc5ouYQYUi72O/lcGs4AXAEj7gax10XITLVGcMF2ChECq7xENXAr8YSeEnEQociuFAY1h7uLxTwqDZgi6G4eZ0IY4CwQzgVT+Le4SG8cuPmea2sjRs3Pm/fvn3bAHxX7hoRLGGR6OjosAGYYrH4vmuuuaYLgKeUshtZVwTg60OnUGzrQMy48BrEgBgMm4Avpis4Hs0gohTuK5eQhoswIjCsW1YsAkGzQVJZ+I8dMbw0HEV1F12ACc+1HLzCCeN75RK+ks3A4BnXsb74AWQ8RBMJ3D02hl9zXagG/QtrY1mpVOqvjTE/RTVxPiN3j7iEwiWOXa1evbp44sSJnlQq9R8C66rBe6GIMD49gx/pIpKxKDzmeXKrCAVy8eO8i2/lCshoDyEThka5ZbFiWL5SevgPqTa8PNIGwwoeMzx2oGFV3UFYuD3aht9si0GzCwXVsP8Fg+ExEKUQngxH8cDYcNNE0qAi6bp166554IEHXg4g32gGVRDBEi4SfX19BADpdPoDa9eu7UU176p+VQb/5z2Tkygm2qGMhgHmbZSqYCFqGcQUQcECkwG1aJQTAxYYRQJuDkfx0nAShm1YyoZNFmyyYJGNiHJgWxZYWXhDpAOrQw5cBqihmioACsYtItSWwO7JCRjXbVhCOehfmEwm0dbW9tGxsbFoNpttD0Rf7qTlhbREWp7Wldq2bRsPDAxsbGtr+9/t7e0OqsmSVM+6IiJk83n8fxOjUF1dYM+dt4UXgbDAUNXsJwGqlqlRHgAbrw934KqQA2agOh9A9UQFISKMaA+Pu2XYSsEQnxODJxCIAaMMok4YQ14Fz3E1VieS0L4l2SiWFY1GNx47duxnW7ZsOczMFhFJH0OxsIRLABERT01NvWnNmjUJNKnXbnx52DM6jPFkOxxzafoNVmuARhCCRm+oOjlXTWdo4Lr5f+8kBbAFZQDLNH4fgeB6FTjJdnx9ahJgM5+VhUQigWQy+dGgdpbcRiJYwiWIXfX19fGpU6de3NnZuZOI2Bijmi3DKZVKuDuXQTTqQJuLPbPv11dm8lciEirQgDGosAetGbVVbJgNNAwMDIg19KzIoIGmVLdPIDAMosrC0TDh6NgIVPNYVlDg7+X79u37NQDWgQMHHHELRbCEi8jevXutO++800xOTr5m3bp1iWaxK+0vw/nJ8BBOJToQJg9GXZooAINAVEbZEAbKFtgwmC0YOtfJAxNgqtVOBz0CUwlGKRhSTWURIDBXoJPd+NrIaDXnYZ5YVltbGxKJxJ8AQFdXl5XP558fPAjk7hLBEi6wdbVt2zYzMDCwtb29/e1KKeO7hw2tq3K5jG/lZ9CWCIM9+5J5QkSAIRsWDO4tzmDKGETIQDHP0ZRqQqhNwElX4yG3gLAK+81d5789DQhtIYVD4RAeHx1vxcrSGzZs+PV77733JZs2bSp96lOfesQXNMl+F8ESLrQOAOCZmZm3rl+/fr2vPqqpdXX6FEZibbBB8IhB5tIZEoarSaj9rLGrmEYFBgoGrtHwTAUeu9Baw2YXM6aIf81Oo6A92EwtBfsZgKUBy/XgtqfwtZnxplOfgbAnk0mKx+M7mZk+8IEPbGpYQlpYcsgs4TJh586dau/evejp6VmRTCb/V3t7ewINyqawPzgrpRL+buwMyl2dsLwg72phhoTyZ/aUUlAL/DTBgEEIwcLxShkj7KLXCqFbESyrqrSaNJ52gX/MpPFopYSQssGzUwXN95cAMBG0YsRUBP2VEm7WjO62tmpVisYzhiYWi205ePDgz6+++uoTu3fvruzevVssrGXyxBaWhztoE5F38ODBj950003/jYh0owdOsFTl+yeexmeVh2QiBe3qBV9tBUIZDJcN4G8zTOdnjFhGoagYnUTYakeQcqrfMOJW8IRXQoEthNiCIQ/P5OXPb2Ip2GCUoaCQN4ybp6bxZ8+9AYaoWSllDcB67LHH7t+6detLAhGTu0xcQuECMDg4GCUi7wc/+EFnMpl8bzAz2MhNUkSolEv4fjGPcLwDnm5drAKrhLhaD2szEV4fj+OOtiRuCUWgyMCFqr6PWzdKPIsQBSFjDPa6BXwnl8e38znsr7goMcGCwUK9VSbMfsawhZgTwoGQwlNTk1BE88ay1qxZc8s999zzWiIyu3btEm9jGSBLFJa+ZaXS6XSUma8/fPjwH65bt64XgFH1VjijGnC2iPDj06fxdCyKDqVhXAVDprlm+dUSlCIY2KigjNfG2vDGaAIdikDkwNUeHjYl/Et6BmPawPbdt9bC1R40qlZPHAZQyl9EXbWm2H/PQgz/qovqgckCiKGMB7R34ctjQ/hYZyfQYEY0EOVUKoUVK1Z8lJl/CqDi18UX11AsLOF86evrQyqVSg8NDXW2t7e/NhwOszGGmllXpVIR38plkUx2QBsNhp5fAogACzDEKEHjlZEE/mOsDTFy4WqgxNVcqRepKN6eTMEBYGtusoRmzub5mZiU8aNb7FdmOF+F4Dn/85iRtGwcVAaPj0+0NGO4efPmWx588MG3AOC9e/eKlSWCJTwbtm7dSkopPT4+/tvr1q3r8q2rpp2c7xkZwVAyBocNiO1q5HxeRQGYFQwBKSi8MhoFsQViB7ZSsIhgKYUKaVxvh3FjuA2F+ay2SwwRQXtFUEcvvjEx2cqMIUUiEU6lUn86MTHRJlVJRbCEZ+cO0tGjR/mrX/1qb1dX1xsAmHljV6UyvplLI5Jog+t5YNbAPLP2xARmA4staFZIWAprnTBgKThKgZSCQwRb2bAtBxHLwgaL4JG6FKt8WhcsAB7ZaLPDeMBhPDoyNF8sSwEwa9euverEiROvZ+YeyESUCJZwfuzevVvdeeedZsOGDX+2Zs2aXgA8n3X17cEBjCQSCINArSaJUpAiANjMKMGgBAZMULr4rFEOhouCsf3yxktnci2IhrFXhpXqxFfHxqrZ7/NYWbFYjNvb2+9Mp9MeABIrSwRLWCA7d+5Ud9xxh961a9fKjo6O328+M1itUpDN53F3JYdoWxuMx+AWzZ+q/WGBSQPEyLgaD5fzIMuCRrX7MsDQxkCBUdDAEa8IizVay7kkP4ZFCMrDPJNCdiG1gQDD0OShzXbwaCyEh0aGW7Gy9IYNG6567LHH3kREWgLvIljCAtm2bZti5ti11177yU2bNkXQNHZVHfY/GB7CeFsbHKNhaOGLnE2NgH2rkMXpSgEhZrDrQnsVWFTNx9pdyuGUW0JEOeAW0pcMGYAMFANGVcVLzX7ThdQGP1mUFTyvBEqmsHt0HKz1fJUcVDgc5p6eng+PjY29gplXMrMllpYIltCidbV9+3bv8OHDL121atXbiEjPF7vK5wv4TrmIaDwB9hZay8qvgMAMMGApwrBr8OmpSfyoVMAQGUyAcLjs4W8z07g7V0KILBjTuKRLLZYh34JTcDTDJUaZGRaUX3XrwkezDBgJ5eBQwsGDZ063UpWU161bd/XY2NgfANC7d++WG3EJIk+QJcjg4GB03bp1oSNHjvyf66+//rdRTVBq2BhVEeErx57EF0MOkrFotWKn0TAKOF/nhkAok0JIMxJOVVwyhlFijZBigC2/yw0168Bca2ahojSirNBtKWhijOhqsr4DxsXwwRRZKCqDTWdG8ennPg9w7IZPaGMMK6UwMDBw5rvf/e5z3vOe9+R9C0zcwyWE5J0sMZhZpVIpfvLJJ3979erVfxSJRJQxxmqwLg5EhJlsHn87NQLV3gVjymBfqJjO/4nEACzSgFIoGaCoDZgMHFiAqWZKtOowGYvhgXELOfi9zg68MZLCtmgMKxwHA+Uy8qhadRdatTQZRJlwCgZbSmWsT6YaViWtahOZ9vb2dmNMcd26dT/funWrJWsMxSUUGotV4MkprfX729vbIwDQIKl9donwd4ZOYaa9E9UQuQUyvlg9i6FGAIgViA0sMCwFvyCfqca2W17qA5iKwjXEeFdXN26kCOLsIa4Ir4nE8fuJTjjGBjGDLuDdGKSkumzQ1taBf5sYRqXUvI+h73abdevWffDRRx/dvGPHDiOVHESwhGZeDBH/7Gc/e+mqVatuqnp89QdM0AlnbGYG3zNlJKIRGH1xjAHGswiPc7WiwqsSSSShUSYXxkK1zAwznh+xcV3IRtEYP9Z1oWIdBMtYsFgh7Cj0tyVwjx/L0g1cWH9Sg1evXp1i5o+LByKCJTSxrnbv3o1du3ZZq1at+kxHR4dfPYUaiggB+NbYCPKpDoRcD2i54IDxixdfguMCEFIGneRUhYIJBAsKFgiAxQZdlgbIgfHnKS/UnhkFkGHoShnx9iS+VczDq1SaVXGAX25ar1q16rVPPPHEi4jISCllESzhXJeE77jjDr1x48Yd69atu6FqCHDdJ3wQaD85MYHveS6SoRAqxPMHrLg6o6iUVW39fimOC4SK0choDUU2PDYgZhhUFz8bDiHjEsgYUGBMXrA4N0NbgCZC2CgMtkXw/VPNZwyD1JGenp6467p/zMyhLVu2rEW1AasggiUwMzFzRyaTeWlHR8dfRaNRvwZfEwXSBl84fRrU0QHLT0dolthOfkCpzEDRY3gAFNcmFdBFEiwGw8LP3CIqRiMKBYssGBg4YBxxizhqDMKWgaZau6x2v87dT/Z/e/YxnP3ZQPcIDM1AItmBXZlJZHN5EFGzpYYKAHd2dr7uwIEDL2xvbx8H4IqVJYIlYvVMSZNEf3//7WvXrt3ULHYVWFdPTIxif9RCzAnDCzrhUGOxKjNDkcE1TgQ3hkNYayl4ADwmNKm0/OzdMgAhCzhcdvE/c3mcNIw8GeRZ42elIv4+O40iNCwdBMppTgWIqmAFzqJiBcXV4JILgzIZuKgul1RnS9mcbWgQe5jp6sF3T5/y89S4mb7zqlWrLMdxPgMgJukNSwOph7UEXEFmbj969GglHA6/MRKJzG9dGYMvjo2AenvAugRDvpXB5w47xYQyG1xr2/idRAKb7RBCZCPPwAPlLL6czyLNVM2FukhDkgAoYtxXLuHRSh6rQw7KnoUzxgMZhqMUtKLqlCI/k5JRc5Jg+UYkFKEMC4YrWKmiSCmDKWMw4zE8i2ExwVC1p6Gm2geDBdJAIhrH96ancWs2i45EYjY1pM6DRCmlzKZNm24+ePDgTX7NLANAhEsE68pkeHg4vnLlSg9AOzP/5dVXX72lmbkTWFcPnj6FQ6EoErYN7bk1IR+a/VFdRcNwFbDZtvGhZBKdfgwJipEwjFdH4kiQwt+lZ6DJa6lLTSvi9Ix2Vg/FsAKh2jXHZQvHKhqGPcTIhrEsMOuqXeQr5tmOlwEY0GAQwiCj0Q6D30ykcEs4ihA0ylzB4TLha/k8xtiFrZS//vHsHau2HtPIdnbi64MD+P2t159VPX7OgwTwW9ynUqlPAvgNAKNS5E9cwiv3aWHbCkD46NGjsY6Ojjf7dcWpiTkG43n4ysw0Qp1JsK7UvYSBhWIpC6wNXhOJol3ZyDLBUDWv3FMaJTa42VG4MRyGa0zT2bMmwTTfAataeR4A1x/wNlt+7EyDmKGZAGUQJkZMVXsUcotmXXVm0QUU4x2pdrwhFkc3KaRgY4WJ4lXxMN7f0Yl2i8FedckQn2s2gbVBNB7Dj0wFZyYnq/lX85dSvvGhhx56AxGZvr4+iWOJYF2Z7NmzpwCAPc9735o1ayw06b6gmaEA/OzUKTwRDiFMNjxWDeIw1c0YNgjbCmtDYYAVQlbVNbPIgq3CsMiGQxFsCTnnlUrAIBiyoKFRMAouDDoAdBDgGUbOr1JqMUGrquwwWzCsYAz73XFaEyyLGUWu4JZwBC+OxqFhgZQF2A5M2IHHYVwbimB7uAOe38r+3GA8w8DA9jwUu7qwa2Sg6YRkUH4mGo1yW1vb+8+cOXPdu9/97pgE38UlvKLwb3gFgB9++OEbVq9e/faqx8dWs6aobrmMXdlJRFeuAbkaZDUoUcwAKcCwgYNqtjr5meq1C46JfNFgApNacHSGiMGmmqD5yqjCi2PtWGWFoBg4oz084OVwf1bDIwsWebNlambdvpatK4JLHmwvjOdHbP+71awgEQhQ1SD6DSEb38kD5+bQ8qzL6sFDIhTBfRTBb46PYXNv76y7XS+WRUR648aN1506der/3bJlyweCayiuoVhYVwRExH7dJeN53rtXrFjhoEmS6GxT1KHT6E+0wbEYxvKgGqwaYVLVCqIAcoZwUmsQAa4haP87mAHlL7Y57ulqGue84++ZCJVigA0jojTe096G9yXb8WInivWWhbW2jReHwnhfNIE/SiWRUC60CTo+03neqBa0YkTYXx5Uxw0GCCHiqphxY5uRQbCMQbkziS+Pj1br8zSxsowxKhQKMYA3/vKXvwyJUIlgXTGW1YEDB5xMJtPDzIlDhw7dumXLlrcE1lWDz0ARIZPL4WuZNBKJFIxmMBtUJ/e5jmBxNemdLAAKP87nMWk0YrYGtAfPuGC4UNDYVynikWIRkZbrkzIAC0Gxm7fEO/CySBsqcKChUHUCGRoWKhzCzbEYfi/ZBQu6ujYRdpAUtgDXk6FA8BTjaKUCMgxXV+CxgcsartZwTTVt4UnPwKNAweqHBBUTPGbEHAcPhBSOjI00LfLnT9maDRs2dEej0Y/I2BHBumK46qqr1hljtOu6NzqO87ednZ0KLSzB+faZ0xhJdSIMAEaDYaOa/kl1rQ1W1QEYhsaA6+JvMhkcKZVRZBcVMLIa+HGpiP+dzsGwQmtLfKsCoECosMY1oRheHo1Cs4FFDEtZUBSGIgeWUoBlwzMWXhaJ4vpwDCXy/EpV53GjEhAjwr3lEk56GmECXK1hTAUaZYQATGrGnmIOxpiqldmgKBjDd4U9F1Z7O/5lbAK6Umla5M8Yo2zbNqtWrXrfQw899MK+vj6WXoaL4J3IKbi0FpafdxV+5JFH3rlx48bPpFIp48dJ6lpXIML4zBT+y9BJ0MqN4ErBL33ceom+qjuoECIPG2xCQjkYMcCQ68ICQVFQima+WTsGoKDIoKgZb0mkcEc8gYoxsBRVXcxZl9P4YW4Fizz8MFfG3+fGEVNhGNYL2n+gWiomokMokoeNtoW3JdrwHDsEmwmkNJ50Db6UT+OxioZlKSgNGJjqMVFjy81RDqYyGXzECeMV6zc0jGX5eADsRx555P8+//nPf5t0jL70SNB9EZiZmYnG4/E/TKVSHDzBG8sDsHvoNHKJLqSMC2+2blRrg539t4fIQCOEY66GNhXYFsHxhS9oYDF/GT0C2IDIhlIaa62qKJEfsK+tv1U9JvbtKRuddg4hdqoJnORhoRNtCjZcVUGEHfS7ZXx6RuNqO4KEzcgb4LhXQtZVsB0Csa7OOkDNc0wEozViqTi+NDyGF5dWwomEG0/VVn1ws3r16h0PPvjg/wTw0JkzZyJr1qwpyF0tLuFladEyc+SJJ5743bVr116NeZbgEBHOTE3jF6SQiMThghe8Lpj8zPGqTaPhkEHUVrBRTa40ZBbYqotglIFig6IJV/uvEkEpOkd4g7V+DEaFAY80jJq/7VjdbzXVmJ1LBo5loQLCQ24JPytUcKBcRN5U0zZgqqkTmnzXj5q7F5oYUSicTMTww9FTTZuvBjrW09MTjkQinwXQbtt2UtIcRLAuR3dQAcCRI0d6ent7d/pLcFSzJTjEwBeHBpFvjwHsIuSdvxdPs04QwbBvTTG13Ln5LP+SAY+Ax9xyVXz8xdd0zjfSbF+cJ10NQwohU9vqYqEHwNXF1ExQYMQIiClGjBSsWWsuqE8fFCGcbwAwPE8jmWjDN9MFZPIFqCYJrUGXnXXr1t28f//+V65YsWLk4MGD4qmIYF1mphWR8eMdH9y8eXMnAqOngXWliHBo6DR+qSwkIhHfvTN1p/QvqfD6QheChUNuAf1eGUp58PhswWAALhsQNMaMxgMVDyFi6KpE4NmGT4M5wOB13u3uyQJZQMQAo+1JfHnwWNPoWpBMmkqlOJlM/tdCofCSSCQivQxFsC4by4r8n+39/f2vi8VibwfAxhirmTVhPA9fmZyA6uwAKhrGVOuiL/Y8STXfs1o2eUZr/HN+ChnPwNEutHFRMUDFANrzYGsPWaPxufQUxr0ybKOg/TLOS2YNMRsYA1Q0o60tjB8bg5GZGb/8TPOO0ddcc83zTp48+Rq/9ruMJRGsy8O42rlzpwIQyefzH9+wYUMb5ungrED45ZkzOBJJIO5YNXlFSwcDIEQKR0oGf51O47AxIFgIKSCkAFKEJ0wJfzeTxcFiEREiaFrC09JEsDyDQlcKXx8dasnKUkqZUCj09ieffDJe+3ASLu4DU7iI7Nq1y9qxY0f4kUceecXKlSvvXrFiBaNBy+NggOhKBe99/DGMr1mJkPEAVrPlg5fcDcRAGUCMLFwTctCrqoc2ygbHSjkU4CAUtLQnhSVdnYUZKuQgNzGOT7f34preFc2W7ICItNbaevDBB//kJS95ySf27Nljb9++3ZO7XgRrubuE9Nhjj9333Oc+90V+7Kpp6eNvHXsa/+gQ2uNReGZpp/kwGVjGggbDnQ18V2UpTIANBbOMhoNSjKzLeOHkNP7suVvBSjXMy/J7GXJ/f//UmTNnbnnZy152XNYYiku4nMVKAVAPP/zw29atW/dCzLMEh4iQzefxjWIGbW0xaG2WwA1SdVGVXy1LnWNhKRiqtugKK0KMLMRIIU4K6pKKFfn7W93X87xiMB4jFYpgfzSEh0aaL9kJuuxs3LixO5lM/jdmTohrKIK1nC0rPPLII5FEIvHJRCJBNfEP1HMHCcCXBwcw1dUOx89ypxaTpKrlH56RFWJ1XvlOz1hO1a2WmFAwjIIxyBtGiYMSxOceADMQzGNeeqllEAhFGJRYg5jOS7bIUmDXQzjRji/MTMKrVNAsUc1/AJlVq1a9ZXBw8IMAOuTuF8FabmJl++JkSqXSO9avX78C1S44TZNET01O4MduGfFoAq7R1cTHeUqwBHZF2RAKbOBSUDqGQGphQzYQR6UImhVcdnG1Bbwu3ob/mGjHb8XbcHUoVG2dNSuOS8CRYwLYgwZjs2XjulAIrBQ8/9wRLWShtYFWHqKK8Hg0jJ+cGYBC416Gwba7u7s5l8u9GUDJn2GUdYYXAUl4uwhWValU2mDb9oZjx44dI6KPhkIhNsaoRh2cA+H54vAAir3dSLoudCs9u+CgwB5iYFwbUYgTYdS1MKZL8CwFm/ySUwp+q2ZuujlDBiFWKGlCwjL497EkbonGkIBVXX1sGK5R+EU5jy8Xsph2AduiFpb0XDSlAjRBKY2SUXhjLIY3RROwAdzjZvH5rAfju4iev66wRdMSWlfQlkpi9/AoXl4oIBaLNa3/TkR6w4YN1x44cOC3AXy+v7/fQTVeKYiFtTQJgq25XG7Mtu2hfD7/8Y0bN3YCME3TGIjw+Ogo7ndsdFhxvw38fJaVgmtKeJ5l4cPtKfzXtg58MNmFP29P4O3JToRhqunoygJYz7u9oGGFRyFESeMPEh14dTSJKFuoGIWKR/AYADy8MhTBf0l1I2XZ8FqQ1oW4dQt9OylCnhhbrBjeEIvCtlwwGL8ebcP1ThgVJhhTbRy7EAwRwoYwmkrhm0ODoCZubpDmEI/HkUgk7ty3b19006ZNZYlliWAteQurr6+Puru7zaOPPtrb3d39RsuyeF73QGv8y8gQdGcPjHGrKQCNZICrsRrXaKwPR/D+jg48PxRFRNlwQEjZIdwaj+HtyQ4YiwHWIKPQyoSwIguuV8avt0XwolAMrl9TS1kMZTFIWVBKoagMtlo2bos7qNQYOw2yNeqNcH9JkB9vI1OtGsGObwUZoIUkWa4WGoVtFIyl4bCCYQcuMRy2YFE1plZd471A9xiA1i7a4lF8q1LESHqmaQA+SCbduHHjRqXUe1s6AEEEa7Hp6+tjAM+xbfsTa9asiaFJravAuvrFqdN4vK0NCSK4fj57YwukWg+dlMLr40l02RFUWMFSCpayQKRgGHi5E8NWO4wKB4N1fgvDM4ywDbw0lAQrgm3bsJWCTTZssmGRgqVs2LBgALw43IYVFKq6XX6xwHlFpipRMIoB0rBgUDI2ymxQ5CJcwwBXj4NJzxu70mCEAAx4JfywWIDDHtpIYX+5iMcqZTizxS0Wrh2GAMsFyslu7BoZaXpkwTUOh8NmxYoVH73vvvtWALAbxS0FEaxFZ/fu3YqI+MEHH9ywZs2aFwPwGt2wfvNBFEsl/Nt0GqFkG4z25omzVC0YVowIEa5WFpgBW539DgbBUgZbHQfGtPaYJ6oO/pW2jRVkzbbcOnevGeRXeui2CF3Kgmf8ssQ1NdubHYKBATHBNjZKzLjKJrwyGserYglcZWkY5VYnIloUGVYECza+XMzgL7LT+ORMFp/JzaDICg7TeUfYqh2jDWIxB/dwBUeGh5paWUG0cMOGDQki+hARVfbu3Stj7AIiQfcL6A4C4D179tipVOpPUqlU80qivnX13cFBjHQmkaBqO/Xm6lLNFlewAOX5EXUGswbIgOD4fR0MyJDvBWmAQ8A81kpVizRsvxpDw+aIXG3jwEwgYlikwUrBsNdS8J3Y3y9meGTwtlgCr4ol0eb/Lhtvw76Siy/k06iwhaA+XsNlMn53oGqzVQuHSi40GcSYoCxuJi4tCJYFWC7IC8F0duPfRofw8Z5ewGrs4RtjLL8B67seeuihz910002PM7NNRJIBLxbW0mHv3r0WACSTyXetX7/+ZlTTGJomiU5ms/hmuYxYWwxGmxbiLOTnWxkUjMFT2gNpDxWtYbQFz2N4RkOzizK7eMz1/LpXZl4RMQCUAqaMhTQqID5Xfjio3skamj0UtIWMARQzeAEpFMowymzw2rYEbk/E0WYRDClUFBBSCre2JfCmZDtcYt99pIaKVa33Xt2mJiCibLQpBpR+1quAGAw2CpoNkmTjsXgS9w6dgSJqmOYQJJP29vbGHcf5OwA4evSojDMRrKXDrl27rG3btkVPnDhxVSqV+th8ta6CLsf/3H8C6c5u2Nr119m14qQwDDEcxPCDQh6TpoIoVa0MjWo5l5Cysb/i4nA5C1vZ1QqcTUw3pmrFUZssTGkXT1U8EGm/mQyf/e3MqMBGmAhH3CKGjIuw1XqLMAKhTECncvDvwnY12ZSrZZotv5tgxbjYFgpjlc1wDWCj+arpQEjJr/NlZgP6FwKq1qHXRYTbU9g1M41isVitmdXY2rYA6FWrVr3yl7/85Wuuv/76CjNHZKSIYC0JduzYAQCFTCbz/o0bN/agugSnaRrDickJ3GsBqbBdTdZpaflZEKGq9qIfLHv4TCaNI66GBsGyGHkQvl3I4XP5NMAOiKpT9C3ZE8wwBHyzlMOEYVhU7e9n/DWC7NdbjoAxBQvfLuSqJZi59YpUBECzxlrHQZeyYaAQGGdq9jRopCzCVSoCl+BnMy3mMiWCpyw4ZHA8Fcf3Tw9U5zLnSSbt6uqiZDL5l0eOHAn19fVVZKSIYC163OrMmTMxItKHDx9+UW9v7+9almWMMU0qiZKfxnAGursL8EotZbSfFUJigLWGcgyOeBqfmpnGX6Rn8JczaXxsZgL/ms0irwmWIjB7aK3hQ7VcctRYOO26+Ex6BqfcMiztQXkeFKqllBUxxljjHzJpHHcZIa4OXG45VlRdHl0hDc0KRpvZzxvWVfFzCZ5hpJV/g1qqwSTApZKraqlnKhm0JVL4ZqmMqUxmvsqkFgB97bXX3pTL5d7W19dnDw4ORmXUPDsk6P4s7+VKpWKYue3o0aN/s3r16jgA3SilPbCuDgyP4OFwDCnL8vvptR5Vqbo9QddlIEIKZQCPe2Wwx7CIESbl9wZcSCpQNTfKkEYYFp4ol3CnLuOVTgLXRAkdWiEHC4+WS7i3kseQ0UhYNvQC0wUMAWHYOF0yOBEv4jl2GGUmOMTQRKiAECJg1DMYqJRhK9+CaxLHutiY4LxbQKSiMdWRwJdOH8d7nnsTGmXMBa3BwuGwWb169V8NDw8/vW7dusPMXEZ1MkYqOohgXXrB2rRpU+ngwYNvuuqqq26BH2ivu3zDN668chn/MjmJyJqVoIoLUs8mv5BgqCpeEfKD5/zsxzUDsBQh59n4mi7BKRk/kmPgaQ1yDJLGgacMmGjhjTGgkbE0vpFzsbYjioQ/Q+gQEIJByWbszhSR8YAwGRjLgtFqobmfF9DCAqAIShu4FpCMtuFnuSxum5zApq7uhjWzggasa9eu7X344YfftHr16p/JkBGXcHFu4uoNyidPnoyEw+H3JZNJfuYeresiQIHwg9NDOJmKVhuB0gVIhp51pxjan9kzF6KGFivYyiCsKlDKVAPzCgiFLDgIwSOGMgsXq2pJeEIYjIPlEv5mZhwPlwuY8AwmPIPHtIe/mcliX7kE2/aglfKz+xcXQwxjEZg1jDYopTrwr0Mn/NSSpveIIiKzYsWK//zII4+8nJnbmFnJsh2xsC7tDWyMAyA8Ojr671/0ohf9WlPryk9jmMll8ZV8GolVPfAqGqSMPyl/IQJq5wyUZ6nIDBfVeleBYxSUkAm+zND5bpoAWHCUxqNlg6PuJLqVDTaMNAzKmhC2ADbK79KMRV/koswzfReZXcRthYci7Thw6gx+Zf3aZg1YCQB6e3ujuVzuCwB+h4h+7icUi1soFtbFJ2j1tH///rbOzs4P+91waL5aV7vPDGCqIwZSCqSqLbeW8nIzugTfECYbNgOTWmPKMIxRiKhAH5fW7TlrTRJDgRFqj+ML6Qlo152vZhY5jqPXrFmz7vHHH7+BmZNDQ0OS5iCCdUnEyurr6wMRGcuy/uTqq6/eXP1181pXT4+O4Ieui0S8HewZgDSI7Cv+IcsEGLagYEGRqbYMA/upGEtTzIkVtLEQIYWnkwn8YLC/aQPWoJpDW1sbE9F/mZiY4HvvvVeqOYhgXXSxopGRkUhfX991x44d27FixYp3Vr1DYzVtiArGF8bHUe7phnI9f1vVeIic06A7M8NAwbC18Oaui7Pn8LSLaDyGLxRymMlmW2oNtnnz5quPHTv21jvuuEMHqyOEpWT1X2aC5d+Ua44ePfr15zznOS9USjVcdhfENfYP9uMT5TIiXSmgVAErtXhF75bJDblczo5ShEzFxe3TWfz+Dc9rFssKmlbg5MmTY8ePH9/6qle9ahqS4rAgJOi+UG+AmQ8fPnzbxo0bX6iUahhoD1yBYqmIf8pMg1evBbGGGw75xeTkWVHfblleeGDEkjHcXSpg28QEruqeN81Bb9q0acXo6OhOInrfrl27LEhlUhGsi2FdAcDw8HC3bdsfSCQSTdMYgpv2yMQ4RvJZdAyNQnsajgKIDVgE6/IZRKSQ8Vx8c+YEPtjV1fhp56c5ANAbNmz4w8cff/zH11133Q+Y2YiVJYJ1QcVq9+7daseOHbHR0dH3b9269To0SWMAMPuEvWnVGvxror2aL6XInxbHM6tlRLeWtznoX1AGEI5EAJq3NQcBwKpVq2hiYuKvAOxBtW6a9DMULgx+q3ncd999K5566qkiMxv/JQgLxhjDzOxlMhn++c9//jr/oSgBeLGwLgxbt24lALBt+zmrVq0KL9Q2YpYH5xUBUcvVXQFwIpFgx3HWAcDevXvF1hbBujD09PQQAFQqlRvb2trIN+GdlpucktyLQv1Qwy233OIBwLZt2+SEtIDkYbXA+Pg4A4DjOCd0tX+8nDfhAhhkxKdPn5Z7SQTrwnL06FEGgKeeeurRbDbLACwJkArPwrKa1azHHnus5LuEcmJEsC4sa9as0ZOTkwxAG2NEsITztawMABoeHi6tXLnyft8lNHJmhAv5VFTMbD/++OP/25/s0f5sjyAsdIZQMzMfPXr0c0Q0OwsttCD2cgpaFqzgXEUOHTr0uc2bN785mUzK+RMWTDab5cHBwa9v2bLljyORyDARFeWsiGBdFNEKYlf33nvvdb/6q78qs6zCgnnwwQfdF73oRU/KmRAuiWhJWRDhQoUZ5CyIhSU3m7D0Bx6RBNkFQRAEQRAEQRAEQRAEQRAEQRAEQRDmRdIaLmP8fDGFaqMDmUYXBGFJi1Xt/yVvTFj2yNKSy9FsJgIRcTab3U5EzqlTp54ion45M4IgLCmripnVvn37orlc7ltBhYByuVwslUpfOnLkyEq/6oSEAgRBaF1UmNliZnvOy2rwqv17w7WMwd/Gxsb+KiiB478MM3M6nf4rZo4ws1jWgiA0Fqk9e/bYF9OyCcRqYGCgo1QqDTKz1lprX7hcZvZKpdJDO3fuFAtLWL7hDjkFF12sVO0M3d133x2+7rrrVkaj0U1KqU3RaHS1UqqDiHpd121PpVJsjKl23FSKi8UilFLjpVLpZKlUeiCfzx/+/Oc/P/6ud70rumrVqvzc7xkbG/u1np6evTi7sw8DIK11YWho6Jr169ef2blzp7rzzjtl5lAQhGdEBAAefvjhNTMzMx/NZDI/qVQqA67rls63YmWlUhlJp9OfZObeWvcwcPOy2ewHfBfQnfNRzcx86tSp7f77pQ+esOyQWMZFcs8A0O7du+3p6emPxmKx94RCoc45bzP+65lfGENKnZ19YIyBUiqoH68cx1nhOM4fp9Npbm9v/4gvirP15T3Pu7qB5Wz8z6+az7r2t1m7I3o5Nt24XI5DEC6qWAUzcTMzM5+psXBcZvZqg+Dng9baY2ZdLpefYmYr6HkYWEyu636p5vt4zvczM7+11iKrs+/UzFpcbtZtg4eJIBaWEFguBw8etDZv3vyXHR0d7wPgGWMspdQFOddKKQIAy7KCARhYSwwA09PTK3t6ehpaUMVicdM8XxEeGhraGgqFXh6LxVK5XO50pVL5JRE9WVsieqmLFRGZ8fHxX4nFYi93HCeZy+X6C4XCPUR0Sm5RQah5qk9MTPyHGqumFWvKzH1prWdfvlXm+dsrMzNPTU39fZD2UPvdhULhJ/42vXoW1vT09J31LCxmjgwMDHRMTk7e6bpupfaD5XL5yYmJiRcvhxyu4DyUSqUPua7rzTmOY0NDQy/0U0TE0hLEFXzyySc3l0qlqZocqLqeXY2LuGD3sFAoHDp58uRKZo7VBN2V//On8whW31zB8oUoNDMz84c1Aur6rxIzcyaT+eFSdw0D8U6n079RcxyVWqFPp9PfD66V3LXiEl7RriARmXQ6/ZFwONwBQAOoNxMXtLqfHTBaa10ulxEOh7VlWZMAkM1m4Xkex2IxCofD48ViseC67oBlWT+tVCo/3Lhx4wQReRdqrB88eJC3bt36ewCMMYYDF9Z3Z00oFLr57rvvThJRZgm7hgwA8Xj8o/6/NQCn5m8mFovdcubMmc61a9dOLhcXVxAuhnVF09PTGyuVykSNa1cX13UPptPpT46Njf0/MzMzN4+Ojl714x//ePPU1NQG32qKveMd74itWrUqdtddd8UW4grNZ2Fls9mzLKwaCy2mtR6qTYGosVKYmfP5fH5N7WeW4jV4wxvekJienh7yJyjMnAam7HmeOXr06E1L3VoUhIvtitDY2Nh/aiAW7Mel3LGxsc+ePn266zwHpMXMdr1Owa0KVqFQ2FlPsPbs2WNXKpV+X6D0nP02ruvmnn766d6lLlif//zn47lcbjDY71rB0lqbSqVS3r9//7qlehyCcMliJ9ls9l8bJG16fvzoW/7748xs+8t1FDMrf8mMCgZe7WshFlY6nf5pTfrDOYJVLpf/W70YFgDK5XJf9z9b8vfZC2I/2Wz2wIEDB5yl3Jex5jp83j/mYnAcWusghvWL4FzLnStciYErMDMdOXIkVCwWn6zjUgVWih4cHHxFkFR6EQarAoCRkZGmFpbneX/QQLAwPT39gnK5nKuTXT86PT39yqUerA4Ef2xs7OXlcjk79ziKxeLQ8ePHb5Cg+/JFgu7Pko997GOKiMzhw4dXWJa1LtCx2nEEgDzPK05NTT2xfv169oO9F2V/EolE0w1bljVVR3SNv08PDQwMvLinp+f3bdu+HgCVy+X7hoaG/vnaa689UXM8S/XhYZiZenp6Dh8/fvwlvb29vx8Kha4nIhSLxQMTExP/tGXLlhPBe+XuFa5Yd3BoaOgVjawr383K5/P51RcrdlITk/rXZ5PpPp8F1+w81JTCoQt0TEHcTl3A89TKvhEzK99llzWXSwgxiy/Agx0AHMe5zv9/3Se31hoDAwMX3TrJ5XKFed6im1go7LtVQf2tkP9SzSwSf4mQ9l+evx3rWQqLIiL2t2kWIoI1y6OC43CYOezvJ7cgaExEZvv27Z7//fVKTteK2my9snoTIoK4hEuOUCi0ptnfy+UyfvGLX1z0/chms05bW1tjtdK6bb7x7ouXN3eA1hvszEwHDx5U6XT6PVrr7Y7jHHVddzcRPRIszF5orhMzW0opPTo6epXneVscxxkjoofnE845wgsAZiGuX7D9ffv2RTdv3vz8aDR6reu66f7+/nuIKF0bf/S3y/UeUEQEY4zt/40l10tYSi5hUNblnxq4YsYPdufHxsZWXQKX8K+auYTFYvHPG7mEASdPnmyfmpq64dSpU287ceLE746Ojm6pt9+BFTU+Pv4Hc/LMJsbHx99zvi4gAJw+ffoN5XL5jL89nc/nPxFUXF3INp9++ulfOX369B3Hjx//rSeeeGITM0dQZ9LDnzkMzczM3FwqlX5Wezy5XO7nTzzxRHewb7t27bJ27drVNjIy8uvj4+NvY+a3eJ73llOnTr12cHDwKhkVwpIXrEwm84VmgsXMeWa+6II1PT39/maCNT4+3tckhmWfOXOmO5fLfdZ13WLN7NpTp06dWlu7ljBIb9i1a1eoUCgc82N35drvnZqa+u+7du2K1i4haoX+/v5Xlsvl6bnrMYeHh19XK5TNhO/MmTOxiYmJT5RKpUrNkqanjx07tm5uTC44ln379kVLpdKjNbOss2kdk5OT7/LF+YXZbPZzpVLpVIN6ZflSqXQwk8n82dNPP3318PBw/HyEVhAulmAFi4+/3oJgrauJqdgLee3Zs8duRbD6+/s/1EywTp48WVewavK4/s+c9YQlX+g+5A/ssxJOh4eH41rr0TnHGizW5kKh8PXTp0931YsD1bGuUuPj49uLxWJuTmqGy8ymUCh8dz7BYmZ7165dVjqd/rs5+1JiZp6ZmfloEG8KPrNnzx57165dVj6ff3ewTnrOedPFYvFvTp48eXulUsnMubZezbpLPVe8ZmZm/umpp57quVgPKkFYsBvjx6geaJD/ZIKbd9++fdFnK45N6lUFwrljnjysj80VrCDN4syZM9dVKpWyn2hpautv5fP5780VC9/CsvL5/OEg12zOUhjXt7R+9O1vfzvmB/Ab1eGyTp8+3VUsFh+vs//aF78n8cz6TKoXg2JmGh4efpFfqeGc48hkMvfMzcMK/p3L5X5RK7a1129ycrK/WCwWgnNZm0Vf53rr2gdGPp9/+Oc//7mI1gVAgu4XCK01NxI0IoLneaFkMvnRkydPTq1bt44sy5o3EFupVBIAVpZKJTbGPJBOp3+ZSqUGmdlrFEx+4oknStddd13DbZbL5fV1fm0xsxeNRrc7jhMC4AV1t/yfyrKsGw8dOhQnonxNAN664447vHQ6/U0A1yulNPyZZz/PzAbgdXR0vPrWW2/9zpkzZ969Zs2aE8GsYvDle/futbZv3+5NT09/MBKJXAfAq703/aqrAFDcuXMn9/X1NcpjU0TkZTKZG23btmqPw98vchznqgceeCBxyy23ZALxICKzZ8+eNsuyrgGg/MXfqBXGzs7ODcElBWDPrQxbG3P3X0ElWC8Wiz3/pptu+urJkyd/E0BaFl0Li25hlUqlB5qsI7wglEqlgwMDAx31LK3A8pmZmXl1g3ww11+a8sU6FlYwcfCJWsuo1sLI5XL5r33ta2fF4ILYz1NPPdVTKpUG6qxDnLuO8cfpdPraIFWi1ro5derUb9WcP1Pn8yabzX6umUtYE8f7eKPj0Fqnc7ncqtr9B4AdO3Z0Tk5OTs9dNF2nZtn54PoxuNe2EoMTGiM5IxfoHIbD4VM1T+BGeM/iVQmHwy+IxWJvr7VkascrABSLxSGtdb1rSwAQCoVWB4ZLzd8MALIs62bfcjnHfFFKIRY7u3CEbyXQNddcMz45Ofl+v9tPkFIw15L3otHoq+Lx+N8eO3YsUpNbRY899tg1PT09f41nOv1QnXNM09PTu+Z7fgCAbds3NlpJoJTy4vH4OblqjuPwPCkQc/crKF9Te410k+tv4vH49Y3cWUEE61IRxLCKLbrg5/tSAEwqlfqVoA1YPaampmYHbq1wGGOCa/3cH//4x6lAMHz3xPiDeWOjAWXbNjZs2HDuwVe3Y61Zs+Yb+Xz+ywDOcvfmHLtrWdZvdHd3//ORI0dWAogTkVm/fv2nwuHwBjxTKwxzxdR13aFwOHzIFyLTQIz0XXfd5di2vXnOMc+9Xuf8/vbbb6dIJKICcZ4H42/HmnONLP/3uo6wKcuyMjJcJIa1JMhms044HL4U4kh+YiTVsy7WrFkzzMxpAO2BBVQ7CG3b7rrqqqtWA0ijphb88ePHk7Ztp87TAmBmVk899dSfh8Ph14dCoSjO7os4a8j4Ma03RaPRTUePHr0tnU5/NB6Pv2Fu3GqOONj5fP6jvb29o1/5ylfqCmIQF+ro6LCVUsma+FvzE+rHknbs2JFxXXcSQHuDfQ+En5VSSmtdcl33nlKp9GA+n88ppTgWi22NxWK/4ziO42+DfXEMu647NjEx8a0g5CkjRlisGJYNAK7r/k2DdILGhdyrcRZTE/vRNbNUtW3mTTDVPj09/Z/qxUECAfv2t7/dXSgU0nPSDM4qc5NOp28LthF87jvf+c6afD5frPO52VnOxx57rGEeWRCLmpqaem8wq9/k0D0/v+uJIB0gKLBXp0MQp9Ppf0B1fV+zdIZgpm+V1jrX6DiYeYqZO2qPw0+5sLLZ7CH/e5uVtuZyubz/1KlTN46Ojp6zamBkZOSWUql0T7AJ13WLhULh6zMzM69i5piMGGFJCNbExMSftiBY7rOp5V4sFh+9++67w82y1Jk55HnesWaB9yALvXahMjOv8nPF6g70UqmUP3DgQLPEV6pphPFNf+A3Ey09X0ezYKJhz549kfnqcAXfvW/fvquKxaJeiGAFC6zT6fQ3GtQSm32wVCqVkdOnT1/rf25uPp2qFa5jx469eWxs7BoZJeISLjkcxxla6Pk2xkBrXWBm17btiWKxSI7jVEKh0JDneZ3GmHZjTI8xpqKUus913U/cdttt5UaWBhGBiCqZTKaYSCRq0wHOoru7e8GlVYwxGB8fb6rdweCfnJz8XcuyvhAKhV7XxNVTNbGguu6t67peOp1+7/bt20vzrSPs6+sDAAwNDZkbbrhhoSkD5O/LIwBur2lcW4sGYHue96W1a9c+ycwhIqo0EE4movsB3F8rplLSRgRriRhZTDMzMzNN4j8MQHue93FjzBOZTCbred5YoVAoWpY1Pjg46I2MjEzdcccdZ8U37rrrLmf9+vXdg4OD7jvf+c6JIDGyQVAbxhhFRCYWiw0DuKHBwIMvIgsWrImJiXnjQcxsuru7M4ODg3e0t7f/n0Qi8e8BaGOMqhNTUk3ET2Uymb7e3t4H5uZtXYxrCECVy+UHm+wXAUA+n9/rW2a6wTkwtSIlQiWCteQgIj5+/PiZVCoFIlLMjJpp9aCAn3vPPfd88tZbb823oIBKKWXe+c53ugCGA/elhRufAGBmZqbS1dXV0MJKp9MLnlb3y+O0dC78fS0CeGs2m326ra3tYy3MvNVaMlapVLq3XC7/daCXrX44EolgocUR+/r6+M477zQPPfTQ/lQqlQ2FQgmcG3i3ACCZTB73j5HnOQ8iUsLSY9euXRYA7Nmz55YGge4gnjLCzO1BvGPXrl3W3Bruc92j86jrHkwA/EOz9YQjIyP/eW4Ma2xsbJXneQ1jWPl8/pzE0Xn2ZTamNTMz84flcnm4ZhKB5wnIm1wu97VDhw7FF/B9CgCOHDlyValUMg2uBTOzVyqVrp1rBQXXIp/Pf39uAnBNxx3vzJkzL5ASy4uHnPQLRG9vb9Mnruu6WQBpv86UvuOOOzQRGb9IXVAzKXjNWis1f2uZcrmca3a94/F4f22sCAC+8Y1voFBoXPsvFovhTW9604KsTt9dVqlU6u/Hx8c/4i9fmu9YLAAcj8ffdN111/1kcnJyQR1uNmzYkHEcJ1tH0Ga3PzMzE2p0bowxh+eem+D8M3NGa91fc60EEazlyejo6OygqOctlEole9u2bZY/AC5mLAahUKjLH3x1v+jRRx89J/7y8pe/HJFI5KLs1OOPP97e0dHxXy3LshZwX3rhcPiWcDj81aNHjzqornek+Y59YmIiw8zZZrG4XC7HjUT29OnTpXqf8eNX+PjHPy5CJSxfatbwvbAmr+qcnCNmvu9it8gK9mV6evo7DabntV894RXB+2um9sPMPNCskepC63kF289ms//9PNdZVvwWY5/yC+zZTapVEAC8+93vbkun06NNGqnyoUOHrq/jEtoAkMvl/myuOx1sJ5vNTn32s5/tWMg5EMTCWlLs3bs3SD5c1WzZyPT0dK428/xiWljt7e0OcM4SkyDrWnd0dJwOfhdYe0TkZrNZfQHFUxGRTqfTt8ZisQ8B0A3SMbjROWNmB4Bua2v74Pve974P+O60anIO6UMf+pDX1tY24x9/vZLOqFQqDfc7Go22N3HrcfjwYbnpRbCWP+l0um1u7OOsE72AabLzvphKGQDIZDJrG7mEhUIBP/nJTwA8k7vEzLRz507EYrGZCyRWRETm/vvvT4bD4bv8Q29UEobgl3Sp46IF96hJpVKfnpycvJOIdD3rJqjjvmnTplI+n59udi2a7Xc6nV5T57wCqMbxXvva18rNLixrl9D2BeuPGszMef5yjp/OdUMuNIEg5HK5R+ssMTF+trw+cODAltp9mds1ul4Bu4W4hMxs79y5U83MzDR0BX03y5RKpZFsNntsnuz32bI1k5OTfbXnfa5VBwDlcvlHjWb6XNfl/fv313MJiZktv4hfo3Mwxczt4hKKhXU50DXf09t3iWr799V7Wb47NStANS2r1DzLU8DMKh6P23VcQgBAJBKZuvnmmyfmWCBB6ZmZCyDgCoB5xzve8auxWOwDqF+BgX1rkPL5/HtHR0dvKxaLJ3FupYNaK4wAeJ2dnTunp6c/REReHfEPBGu0kYWllEJnZ2c9i5D7+vospVRgnaq58TEAiUwm01t7zgQRrGUJEa2t9/tghimbzQY97tya/n31XkEfvtnZRj/9wQvSIBosPiYA6O/vT7quu6LJoKr4r7mCANd1G9b0cl0Xjz/+eEv3FBFxIpH4lOM4tn/8c/fDoJpe8HednZ1fv+qqq46l0+n3NnMPAZAxxkK1rtSfPvnkk5vhrzKoI0rjjaxPpRT39vaaesf/5je/ucu27Z5GYq+1tvv7+8Nyty8ekun+7DHMbBeLxdX1RCJYjpJKpa5zXfc3bNsuA4DneZ3FYrErnU6bnp6eVKlUWhmJRFKVSmVFIpFIZjKZrmg0ykQErfVkpVI5Wi6XfzQwMPB9InIbldndt28f3X777eQ4TqNMd2pkHWitG6ayF4tFfP3rX5/XPSYiL51O/2UikbgFgFZKzQ20awBWsVi859ChQx/etm0bmNkhou8VCoU/dhznL23btutZZv651I7jtPf29u4kot/zrdazrLJKpTIZj8fP2T3/uGcSicRIPWGemZmJG2Ma1t13XRdPP/20pDUIyzZ+RQAwODjY6Wdyc5PmBBeETCbz5cHBwejcFIng3x/5yEc6MpnMVJ19Cf49FJQ5qUlpsH3B6qsThwum9PP/9m//VjeGVZORb8/MzLzZdV3ToCKFZmZTLpfH+/v7N/kubhBHswBgdHT0t/x0jEYliY2/jdLhw4fXAdWegrXHMTo62vA4mDmdzWZXzDn+4PObaj5j6sTdeHh4+PqLHYsUhIslWEEj0Te0kGdUr+aVO/flD1bPD5jXey9PTU196ciRI0EL+QsmWFNTU//YZKCXR0dHr6o3WIPY2smTJ7drrctNxMYzxvDk5OR/brAdGwDy+fxve55XbrKUx/Nbdr279nM1P88RrCDorrXmY8eObZ0jVAoADh8+vKVcLusmy3qYmUWwJIa1vInFYjsaxX7muGKq5jW3vK6NajcWC4Dlp0Gc9d4ghhOLxd7kOE4PEZm5ZYBvvfVWrha8rB+HMcZgaKh+JZxcLtco4K0BhIjoGgDYu3fvWQFpIjJ79+4Nr1ix4h+UUiE8UzbmHFewXC7/rKur6x+DMixz4kzenj177Hg8/tVsNvsRPFOCpp57x8y8ssG5dhrEsLRSCm1tbZvmuO/sv2eaiNKNLqDWGidOnJBguwjWMj151WYQ8DzvRl8M1EX+PhhjQER2uVwO1xEWvOQlL+mJRCKJufG0IPhfLpfNpz/96brCatt2s3IvAPB8ANi2bVvt3yxmVjfeeOObotHoNaiWrplbDXX25+Tk5F/U1Ic6Zz+2bdummVl9+MMf/l+FQmHQv0frCqlt2481Cjc1O45IJHJt7fkJJjKuv/76KWPMU8Epq7P/3uTkZEXufBGsZe0WKqVsNO+Y0mjwnPMyxrA/S2b8bZ71Ukqpcrn88Ne+9rVB36Xj2sE4PDyc1VoXMGchtZ9GwEqp4//jf/yPou9OnrW/HR0dhUbHYIzhOiI5exyO47yx0WeZWQOwCoXCV9auXfsTXyTqZrcH+3TXXXehUqn8hX+Myhijq7thPAB2pVLJnzx5ck9gOdVuY2pqykbz7jV1Cwoys+153sNzreVgsbMxJp1IJIZasKYFEaylh++iwbKsH/lunFUjNHPbP5maV/B0P+ellKKgealvqdS+7FKpdF86nf7Dvr4+M9dK8bsepyuVygl/e66pmlbG3w8qlUo/8i0GNdfyqFQqAzUuoDY+AIxSilKp1KE6g5WJiLXWPag/A2mUUlalUpnJZDKf9uNMrdSSMh0dHf94+vTpj3mex/65VUop219e86fPe97zRv2ihWdtz0/POOs4aq6BGh8ff6LecQDgbDa7y/O84BoFn60AoHK5vP85z3lO1i8oKIIlLDvriphZjYyMrEin03cVi8XJBUz4ecVi0cvlcm6lUvE8z5tm5qFMJjOUTqeHKpXKIDM/MD09fX8ul/tlqVT60uTk5I49e/bYjVrWB65WNpt9ted5pTqNWE+Nj4//Su17a+JQeOqpp3rK5fKxejtbKBTuP3LkSFud2UkbAIrF4r/MbdHuTxwYz/MqIyMjv+7vt7WA82v7VuMrC4XC95n5QD6f/+nIyMjt/t+dOsdPU1NTN5bL5RMN6uI/0KhkTfD/bDb7L3WOv9Lf3/9SZqagBppw6ZEA4gUSLiLib3/7290333zzdR0dHeuGhoYSWmt0d3ejs7NzIJfLuUePHsWWLVuQTCanQqFQ5t5776WBgQF+2cteBtu2M6tXry68853vxNDQEN797nfr2267rXy++zIyMvKS9vb29xcKhecopchxnIczmczHVq5cWTewHHxueHh4YzQafatlWa92XbfTtu2iMebudDr9f9evX3+aiMpzXWIi0mNjY7f19PR8z7fkghww23VdTqfTb+vu7v4iqkml+nyOZ+fOncpvUa9rv7fePc3MTn9//+pEIvGWSCTymnK53B4Oh3OlUuneoaGhj99www2FucdR81mamZlJRiKRD5fL5dsAuEqpI8Vi8R/T6fSBq6++WvuLsAVheYvWRbLggpcVWBAtfO4sV//mm292WrEK5h7DZz7zmWSr+3ny5MnI1NTUXXMsurGZmZm3BikYz/KBELiLso5PEC6gwFgN1gfWvlTw8us8qTni9KzrZvnbtRY60P19sQKRmCOWTYWOmWl6evq3c7nc/0yn038xPDz84pq/0wU4ty1vp6Z+lqo5DrWQ8s5EBKUU5jt+QRAugqV2sUMGzeJqgiAxLGEpiqNVc19pmU0TBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEEQBEFokf8fDA6Qo0xJmkMAAAAASUVORK5CYII=";
+
+const SUBJECTS = [
+  {id:"maths",name:"Mathematics",icon:"∑"},
+  {id:"bio",name:"Biology",icon:"◎"},
+  {id:"chem",name:"Chemistry",icon:"△"},
+  {id:"phys",name:"Physics",icon:"⚡"},
+  {id:"eng_lang",name:"English Language",icon:"A"},
+  {id:"eng_lit",name:"English Literature",icon:"B"},
+  {id:"hist",name:"History",icon:"◆"},
+  {id:"geo",name:"Geography",icon:"◉"},
+  {id:"cs",name:"Computer Science",icon:">_"},
+  {id:"econ",name:"Economics",icon:"$"},
+  {id:"biz",name:"Business Studies",icon:"◈"},
+  {id:"psych",name:"Psychology",icon:"◐"},
+  {id:"fr",name:"French",icon:"FR"},
+  {id:"es",name:"Spanish",icon:"ES"},
+  {id:"ar",name:"Arabic",icon:"ع"},
+  {id:"art",name:"Art & Design",icon:"✦"},
+  {id:"music",name:"Music",icon:"♩"},
+  {id:"rel",name:"Religious Studies",icon:"☯"},
+];
+const PROFICIENCY = ["Beginner","Developing","Confident","Advanced"];
+const GRADES = ["Year 7","Year 8","Year 9","Year 10","Year 11","Year 12","Year 13"];
+const REGIONS = ["United Kingdom","Qatar / GCC","United States","Australia","Canada","India","Singapore","South Africa","Other"];
+const CURRICULA = ["GCSE","IGCSE","A-Level","AS-Level","IB MYP","IB Diploma","AP","Cambridge Lower Secondary","National Curriculum","Other"];
+const SPACE_COLORS = {Cyan:"#3BBFAF",Indigo:"#6366f1",Amber:"#f59e0b",Red:"#ef4444",Violet:"#8b5cf6",Pink:"#ec4899",Orange:"#f97316",Teal:"#14b8a6"};
+const SPACE_ICONS = ["▣","◎","◈","⬡","◆","◉","▲","✦"];
+const PROF_COLORS = {Advanced:"#16a34a",Confident:"#3BBFAF",Developing:"#d97706",Beginner:"#dc2626"};
+const STUDY_TIPS = [
+  "<strong>🍅 Pomodoro Method</strong><br/>Study for 25 minutes then take a strict 5-minute break. After 4 rounds take a 20-minute break. This prevents mental fatigue and keeps focus sharp. The key is honouring the breaks — your brain consolidates information during rest, not during study.",
+  "<strong>📅 Exam Preparation</strong><br/>Start revising 4–6 weeks before your exam and map every topic to a specific day on a calendar. Spreading revision over time is far more effective than cramming because your brain needs repeated exposure to move information into long-term memory.",
+  "<strong>🔁 Active Recall</strong><br/>Close your notes and write down everything you remember about a topic from scratch. This is the single most effective revision technique because it forces your brain to retrieve information — exactly what exams require. Rereading is passive; recall is active.",
+  "<strong>📇 Spaced Repetition</strong><br/>Review material after 1 day, then 3 days, then 1 week, then 2 weeks. Each time you revisit something just before you would forget it, the memory strengthens. Apps like Anki automate this spacing, but you can do it manually with a revision schedule.",
+  "<strong>✍️ Past Papers</strong><br/>Practise under timed exam conditions using real past papers, then mark your work with the official mark scheme. This shows exactly what examiners want, trains you to manage time, and reveals weak topics far more effectively than rereading notes.",
+  "<strong>🎯 Target Weaknesses</strong><br/>Spend the majority of your revision on the topics you find hardest, not the ones you already know. It feels uncomfortable, but it is where you gain the most marks. List your weakest areas and tackle them first each session while your energy is highest.",
+  "<strong>📝 Feynman Technique</strong><br/>Pick a concept and explain it out loud as if teaching a complete beginner. Wherever you stumble or use vague language, that is a gap in your understanding. Go back to your notes, fill the gap, then explain it again. Simple language means genuine understanding.",
+  "<strong>💤 Sleep and Memory</strong><br/>During deep sleep your brain replays and consolidates the day's learning into long-term memory. Pulling an all-nighter before an exam actively undermines the memories you built during revision. Aim for 7–9 hours especially in the week before an exam.",
+  "<strong>📵 Remove Distractions</strong><br/>Put your phone in a different room — even having it face-down on your desk measurably reduces working memory and focus. Every notification, even one ignored, interrupts the deep concentration needed for learning. Use a website blocker during sessions.",
+  "<strong>🗂️ Mind Maps</strong><br/>Draw a central concept and branch out with connected ideas, subtopics, and keywords. The act of organising information visually forces you to think about how concepts relate to each other, which deepens understanding and makes recall easier during an exam.",
+  "<strong>🗣️ Teach Someone Else</strong><br/>Explaining a topic to a classmate, friend, or family member is one of the fastest ways to deepen your own understanding. When you teach, you must organise your thoughts clearly, and any gaps become immediately obvious. If you cannot explain it simply, you do not understand it yet.",
+  "<strong>🧃 Stay Hydrated</strong><br/>Even mild dehydration — as little as 1–2% loss of body water — measurably impairs concentration, short-term memory, and reaction time. Keep a water bottle at your desk and drink throughout your session. Avoid excessive caffeine, which can raise anxiety and disrupt sleep."
+];
+const ADMIN = {
+  id:"admin_001", email:"admin@elixir.app", username:"Youssef",
+  pw:"", isAdmin:true,
+  profile:{
+    grade:"Year 8", region:"Qatar / GCC", curriculum:"Cambridge Lower Secondary",
+    subjects:[
+      {id:"maths",name:"Mathematics",icon:"∑",proficiency:"Advanced"},
+      {id:"bio",name:"Biology",icon:"◎",proficiency:"Advanced"},
+      {id:"chem",name:"Chemistry",icon:"△",proficiency:"Advanced"},
+      {id:"cs",name:"Computer Science",icon:">_",proficiency:"Advanced"},
+      {id:"geo",name:"Geography",icon:"◉",proficiency:"Advanced"},
+      {id:"music",name:"Music",icon:"♩",proficiency:"Advanced"},
+      {id:"ar",name:"Arabic",icon:"ع",proficiency:"Advanced"},
+      {id:"rel",name:"Religious Studies",icon:"☯",proficiency:"Advanced"},
+      {id:"art",name:"Art & Design",icon:"✦",proficiency:"Confident"},
+      {id:"hist",name:"History",icon:"◆",proficiency:"Confident"},
+    ]
+  }
+};
+
+// ═══════════════════════════════════════════════════════════════
+// CLASS: Store — localStorage state management
+// ═══════════════════════════════════════════════════════════════
+class Store {
+  static get(k,d=null){try{const v=localStorage.getItem("elixir_"+k);return v?JSON.parse(v):d;}catch{return d;}}
+  static set(k,v){try{localStorage.setItem("elixir_"+k,JSON.stringify(v));}catch{}}
+  static del(k){localStorage.removeItem("elixir_"+k);}
+
+  static getSession(){return this.get("session");}
+  static setSession(s){this.set("session",s);}
+  static clearSession(){this.del("session");}
+
+  static getProfile(uid){return this.get("profile_"+uid);}
+  static setProfile(uid,p){this.set("profile_"+uid,p);}
+
+  static getUsers(){const u=this.get("users",[]); if(!u.find(x=>x.email===ADMIN.email)) u.push({id:ADMIN.id,email:ADMIN.email,username:ADMIN.username,pw:""}); return u;}
+  static saveUsers(u){this.set("users",u);}
+  static findUser(email){return this.getUsers().find(u=>u.email.toLowerCase()===email.toLowerCase());}
+  static addUser(u){const all=this.getUsers(); all.push(u); this.saveUsers(all);}
+
+  static getSpaces(uid){return this.get("spaces_"+uid,[]);}
+  static setSpaces(uid,s){this.set("spaces_"+uid,s);}
+
+  static getNotes(uid,sid){return this.get(`notes_${uid}_${sid}`,[]);}
+  static setNotes(uid,sid,n){this.set(`notes_${uid}_${sid}`,n);}
+
+  static getApiKey(){return this.get("groq_key","");}
+  static setApiKey(k){this.set("groq_key",k);}
+
+  static getTipIdx(){return this.get("tip_idx",0);}
+  static setTipIdx(i){this.set("tip_idx",i);}
+
+  // Exam calendar — stored as {id, subject, date:"YYYY-MM-DD"}
+  static getExams(uid){return this.get("exams_"+uid,[]);}
+  static setExams(uid,exams){this.set("exams_"+uid,exams);}
+  static addExam(uid,exam){const all=this.getExams(uid); all.push(exam); this.setExams(uid,all);}
+  static removeExam(uid,examId){this.setExams(uid,this.getExams(uid).filter(e=>e.id!==examId));}
+
+  // Mistakes (saved from quiz grading)
+  static getMistakes(uid,sid){return this.get("mistakes_"+uid+"_"+sid,[]);}
+  static addMistake(uid,sid,text){
+    const m=this.getMistakes(uid,sid);
+    m.push({id:"m"+Date.now(),text,created:new Date().toISOString()});
+    this.set("mistakes_"+uid+"_"+sid,m);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// CLASS: Toast — notifications
+// ═══════════════════════════════════════════════════════════════
+class Toast {
+  static show(msg,type=""){
+    const t=document.getElementById("toast");
+    t.textContent=msg; t.className="toast show "+(type||"");
+    clearTimeout(this._t);
+    this._t=setTimeout(()=>{t.className="toast";},3000);
+  }
+  static success(m){this.show(m,"success");}
+  static error(m){this.show(m,"error");}
+}
+
+// ═══════════════════════════════════════════════════════════════
+// CLASS: Router — screen navigation
+// ═══════════════════════════════════════════════════════════════
+class Router {
+  static current = "welcome";
+  static go(screen, data={}){
+    this.current = screen;
+    this._data = data;
+    this.render();
+  }
+  static render(){
+    const el = document.getElementById("screen");
+    const sidebar = document.getElementById("sidebar");
+    const session = Store.getSession();
+    const authenticated = !!session;
+
+    // Show/hide sidebar
+    if(authenticated && !["welcome","signin","signup","onboard"].includes(this.current)){
+      sidebar.style.display = "flex";
+      Sidebar.render();
+    } else {
+      sidebar.style.display = "none";
+    }
+
+    el.innerHTML = "";
+    el.className = "fade-in";
+    // Reset animation
+    void el.offsetWidth;
+
+    switch(this.current){
+      case "welcome":    Auth.renderWelcome(el); break;
+      case "signin":     Auth.renderSignIn(el); break;
+      case "signup":     Auth.renderSignUp(el); break;
+      case "onboard":    Auth.renderOnboard(el); break;
+      case "dashboard":  Dashboard.render(el); break;
+      case "new_space":  SpaceManager.renderNew(el); break;
+      case "space":      SpaceManager.renderSpace(el, this._data); break;
+      case "studyplan":  StudyPlanManager.render(el); break;
+      case "quiz":       QuizManager.renderScreen(el); break;
+      default:           Auth.renderWelcome(el);
+    }
+    // Scroll to top after content renders
+    requestAnimationFrame(function(){
+      var m=document.getElementById("main");
+      if(m) m.scrollTop=0;
+    });
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// CLASS: Sidebar
+// ═══════════════════════════════════════════════════════════════
+class Sidebar {
+  static render(){
+    const session = Store.getSession();
+    if(!session) return;
+    const profile = Store.getProfile(session.id) || {};
+    const spaces  = Store.getSpaces(session.id);
+
+    document.getElementById("sb-workspace").textContent = session.username+"'s workspace";
+    document.getElementById("sb-uname").textContent = session.username;
+    document.getElementById("sb-email").textContent = session.email;
+    document.getElementById("sb-avatar").textContent = (session.username||"?")[0].toUpperCase();
+
+    // Spaces list
+    const sb = document.getElementById("sb-spaces");
+    if(spaces.length === 0){
+      sb.innerHTML = '<div style="padding:4px 10px;font-size:12px;color:var(--text3)">No spaces yet</div>';
+    } else {
+      sb.innerHTML = spaces.slice(0,12).map(sp=>`
+        <button class="sb-btn" onclick="Sidebar.close();SpaceManager.open('${sp.id}')">
+          <span class="sb-btn-icon" style="color:${sp.color}">${sp.icon}</span>
+          <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${sp.name}</span>
+        </button>`).join("");
+    }
+  }
+
+  static open(){
+    document.getElementById("sidebar").classList.add("open");
+    document.getElementById("overlay").classList.add("open");
+  }
+  static close(){
+    document.getElementById("sidebar").classList.remove("open");
+    document.getElementById("overlay").classList.remove("open");
+  }
+  static toggleUserMenu(){
+    document.getElementById("user-menu").classList.toggle("hidden");
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// CLASS: Auth — sign up, sign in, onboarding
+// ═══════════════════════════════════════════════════════════════
+class Auth {
+  // ── Welcome ───────────────────────────────────────────────────
+  static renderWelcome(el){
+    // API key setup screen — must do this first
+    if(!Store.getApiKey()){
+      el.innerHTML = `
+        <div class="auth-wrap">
+          <div class="auth-box fade-in">
+            <div class="auth-logo" style="align-items:center;">
+              <img src="${LOGO}" style="width:72px;height:72px;object-fit:contain;" alt="Elixir"/>
+              <div class="auth-logo-name" style="color:var(--cyan);">Elixir</div>
+            </div>
+            <h2 class="auth-title">Connect Groq API</h2>
+            <p class="auth-sub">Elixir uses Groq's free tier — no credit card needed.<br/>
+            Get a key at <a href="https://console.groq.com" target="_blank">console.groq.com</a> → API Keys</p>
+            <div class="input-group">
+              <input class="input" id="api-key-input" type="password" placeholder="gsk_..." autocomplete="off"/>
+            </div>
+            <button class="btn btn-primary btn-full" onclick="Auth.saveApiKey()">Continue →</button>
+            <p style="font-size:11px;color:var(--text3);margin-top:12px;text-align:center;">Stored locally in your browser only.</p>
+          </div>
+        </div>`;
+      return;
+    }
+
+    // Full landing page — two-column layout
+    el.innerHTML = `
+      <div class="landing-page fade-in">
+
+        <!-- Header -->
+        <header class="landing-header">
+          <div class="landing-logo-wrap">
+            <img class="landing-logo-img" src="${LOGO}" alt="Elixir"/>
+            <span class="landing-logo-text">Elixir</span>
+          </div>
+          <nav class="landing-nav">
+            <button class="landing-nav-link" onclick="Auth.showAuthModal('signin')">Sign In</button>
+            <button class="landing-nav-cta" onclick="Auth.showAuthModal('signup')">Sign Up</button>
+          </nav>
+        </header>
+
+        <!-- Hero -->
+        <main class="landing-hero">
+          <div class="landing-left">
+            <p class="landing-eyebrow">AI-powered revision</p>
+            <h1 class="landing-title">Study smarter<br/>with <span>Elixir</span></h1>
+            <p class="landing-desc">Upload any revision material — notes, slides, textbooks — and get comprehensive, topic-structured study notes, practice quizzes, and personalised study plans in seconds.</p>
+            <button class="landing-cta" onclick="Auth.showAuthModal('signup')">Get Started →</button>
+            <p style="font-size:11px;color:var(--text3);margin-top:6px;">Powered by Groq · Free · No subscription</p>
+          </div>
+          <div class="landing-right">
+            <img class="landing-flask" src="${LOGO}" alt="Elixir Flask"/>
+          </div>
+        </main>
+
+        <!-- Footer -->
+        <footer class="landing-footer">
+          <p>Elixir AI Study Assistant · Built for students everywhere</p>
+        </footer>
+
+      </div>`;
+  }
+
+  // ── Auth modal that overlays the landing page ──────────────────
+  static showAuthModal(tab){
+    let ov = document.getElementById("auth-modal-overlay");
+    if(!ov){
+      ov = document.createElement("div");
+      ov.id = "auth-modal-overlay";
+      ov.className = "auth-modal-overlay";
+      ov.addEventListener("click", function(e){ if(e.target===ov) Auth.hideAuthModal(); });
+      document.body.appendChild(ov);
+    }
+    ov.innerHTML = `
+      <div class="auth-modal-box fade-in">
+        <div class="auth-modal-head">
+          <div style="display:flex;align-items:center;gap:8px;">
+            <img src="${LOGO}" style="width:26px;height:26px;object-fit:contain;" alt=""/>
+            <span style="font-size:14px;font-weight:700;color:var(--cyan);">Elixir</span>
+          </div>
+          <button class="auth-modal-close" onclick="Auth.hideAuthModal()">✕</button>
+        </div>
+        <div class="auth-tabs">
+          <button class="auth-tab ${tab==='signin'?'active':''}" id="tab-signin" onclick="Auth.switchTab('signin')">Sign In</button>
+          <button class="auth-tab ${tab==='signup'?'active':''}" id="tab-signup" onclick="Auth.switchTab('signup')">Create Account</button>
+        </div>
+        <div class="auth-modal-body" id="auth-modal-content"></div>
+      </div>`;
+    ov.classList.add("open");
+    Auth._renderModalTab(tab);
+  }
+
+  static hideAuthModal(){
+    const ov = document.getElementById("auth-modal-overlay");
+    if(ov) ov.classList.remove("open");
+  }
+
+  static switchTab(tab){
+    document.querySelectorAll(".auth-tab").forEach(b=>b.classList.remove("active"));
+    const t = document.getElementById("tab-"+tab);
+    if(t) t.classList.add("active");
+    Auth._renderModalTab(tab);
+  }
+
+  static _renderModalTab(tab){
+    const c = document.getElementById("auth-modal-content");
+    if(!c) return;
+    if(tab === "signin"){
+      c.innerHTML =
+        Auth._googleBtn() +
+        '<div class="divider-line">or continue with email</div>' +
+        '<div class="input-group"><label class="input-label">Email</label>' +
+        '<input class="input" id="si-email" type="email" placeholder="you@email.com"/></div>' +
+        '<div class="input-group"><label class="input-label">Password</label>' +
+        '<input class="input" id="si-pw" type="password" placeholder="Your password"' +
+        ' onkeydown="if(event.key===\'Enter\') Auth.doSignIn()"/></div>' +
+        '<button class="btn btn-primary btn-full mt-8" onclick="Auth.doSignIn()">Sign in →</button>' +
+        '<p style="text-align:center;font-size:12px;color:var(--text3);margin-top:10px;">No account? ' +
+        '<a href="#" onclick="event.preventDefault();Auth.switchTab(\'signup\')" style="color:var(--cyan);">Create one</a></p>';
+    } else {
+      c.innerHTML =
+        Auth._googleBtn() +
+        '<div class="divider-line">or continue with email</div>' +
+        '<div class="input-group"><label class="input-label">Email</label>' +
+        '<input class="input" id="su-email" type="email" placeholder="you@email.com"/></div>' +
+        '<div class="input-group"><label class="input-label">Username</label>' +
+        '<input class="input" id="su-user" type="text" placeholder="studystar99"/></div>' +
+        '<div class="input-group"><label class="input-label">Password</label>' +
+        '<input class="input" id="su-pw" type="password" placeholder="Create a strong password"' +
+        ' oninput="Auth.pwStrength(this.value)"/>' +
+        '<div class="pw-bar"><div class="pw-fill" id="pw-fill" style="width:0%"></div></div>' +
+        '<div class="pw-label" id="pw-label" style="color:var(--text3);"></div></div>' +
+        '<div class="input-group"><label class="input-label">Confirm Password</label>' +
+        '<input class="input" id="su-cpw" type="password" placeholder="Repeat your password"/></div>' +
+        '<button class="btn btn-primary btn-full mt-8" onclick="Auth.doSignUp()">Create account →</button>' +
+        '<p style="text-align:center;font-size:12px;color:var(--text3);margin-top:10px;">Have an account? ' +
+        '<a href="#" onclick="event.preventDefault();Auth.switchTab(\'signin\')" style="color:var(--cyan);">Sign in</a></p>';
+    }
+  }
+
+  // Override doSignIn / doSignUp to close modal on success
+  static doSignIn(){
+    const email = (document.getElementById("si-email")||{}).value?.trim().toLowerCase() || "";
+    const pw    = (document.getElementById("si-pw")||{}).value || "";
+    if(email === ADMIN.email.toLowerCase()){
+      Store.setSession({id:ADMIN.id,email:ADMIN.email,username:ADMIN.username,isAdmin:true});
+      if(!Store.getProfile(ADMIN.id)) Store.setProfile(ADMIN.id, ADMIN.profile);
+      Auth.hideAuthModal(); Router.go("dashboard"); return;
+    }
+    const u = Store.findUser(email);
+    if(!u || u.pw !== btoa(pw)){ Toast.error("Incorrect email or password."); return; }
+    Store.setSession({id:u.id, email:u.email, username:u.username, isAdmin:false});
+    Auth.hideAuthModal();
+    Router.go(Store.getProfile(u.id) ? "dashboard" : "onboard");
+  }
+
+  static doSignUp(){
+    const email = (document.getElementById("su-email")||{}).value?.trim() || "";
+    const user  = (document.getElementById("su-user")||{}).value?.trim() || "";
+    const pw    = (document.getElementById("su-pw")||{}).value || "";
+    const cpw   = (document.getElementById("su-cpw")||{}).value || "";
+    if(!email.includes("@"))    { Toast.error("Enter a valid email."); return; }
+    if(user.length < 3)         { Toast.error("Username must be 3+ characters."); return; }
+    if(Store.findUser(email))   { Toast.error("Email already registered."); return; }
+    if(Store.getUsers().find(u=>u.username.toLowerCase()===user.toLowerCase())){ Toast.error("Username taken."); return; }
+    if(Auth.pwStrength(pw) < 2) { Toast.error("Password too weak."); return; }
+    if(pw !== cpw)              { Toast.error("Passwords do not match."); return; }
+    const nu = {id:"u"+Date.now(), email, username:user, pw:btoa(pw)};
+    Store.addUser(nu);
+    Store.setSession({id:nu.id, email, username:user, isAdmin:false});
+    Auth.hideAuthModal();
+    Router.go("onboard");
+  }
+
+  static saveApiKey(){
+    const k = document.getElementById("api-key-input").value.trim();
+    if(!k.startsWith("gsk_")){ Toast.error("Groq keys start with gsk_"); return; }
+    Store.setApiKey(k);
+    AIManager.refreshAvailableModels();
+    Router.go("welcome");
+  }
+
+  static pwStrength(pw){
+    const n = [pw.length>=8,pw.length>=12,/[A-Z]/.test(pw)&&/[a-z]/.test(pw),/\d/.test(pw),/\W/.test(pw)].filter(Boolean).length;
+    const lbls=["","Too short","Weak","Fair","Good","Strong"];
+    const clrs=["","#dc2626","#ef4444","#d97706","#16a34a","#16a34a"];
+    const pct=Math.min(n/5*100,100);
+    const f=document.getElementById("pw-fill");
+    const l=document.getElementById("pw-label");
+    if(f){f.style.width=pct+"%";f.style.background=clrs[n]||"#333";}
+    if(l){l.textContent=lbls[n]||"";l.style.color=clrs[n]||"var(--text3)";}
+    return n;
+  }
+
+  static signOut(){
+    Store.clearSession();
+    Router.go("welcome");
+  }
+
+  // ── Google button ─────────────────────────────────────────────
+  static _googleBtn(){
+    return `<button class="google-btn" onclick="Auth.googleLogin()">
+      <svg width="18" height="18" viewBox="0 0 48 48">
+        <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
+        <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
+        <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
+        <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
+      </svg>
+      Continue with Google
+    </button>`;
+  }
+
+  static googleLogin(){
+    const cid = "YOUR_GOOGLE_CLIENT_ID"; // Replace with actual client ID
+    if(cid === "YOUR_GOOGLE_CLIENT_ID"){
+      Toast.error("Google OAuth not configured. Add your Client ID.");
+      return;
+    }
+    const params = new URLSearchParams({
+      client_id:cid, redirect_uri:location.origin+location.pathname,
+      response_type:"code", scope:"openid email profile",
+      state:"google", access_type:"online"
+    });
+    location.href = "https://accounts.google.com/o/oauth2/v2/auth?"+params;
+  }
+
+  // ── Onboarding ────────────────────────────────────────────────
+  static _ob = {step:0, grade:"", region:"", curriculum:"", picked:[], profs:{}};
+
+  static renderOnboard(el){
+    const ob = Auth._ob;
+    const steps = ["Your details","Your subjects","Confidence levels"];
+    el.innerHTML = `
+      <div style="max-width:480px;margin:0 auto;padding-top:20px;" class="fade-in">
+        <p style="font-size:11px;font-weight:700;color:var(--text3);margin-bottom:6px;">STEP ${ob.step+1} OF 3 — ${steps[ob.step]}</p>
+        <div class="progress-bar"><div class="progress-fill" style="width:${((ob.step+1)/3*100)}%"></div></div>
+        <div id="ob-content"></div>
+      </div>`;
+    const c = document.getElementById("ob-content");
+    if(ob.step===0) Auth._ob0(c);
+    else if(ob.step===1) Auth._ob1(c);
+    else Auth._ob2(c);
+  }
+
+  static _ob0(el){
+    const ob=Auth._ob;
+    el.innerHTML = `
+      <h2 class="auth-title">Personalise your experience</h2>
+      <p class="auth-sub">Help Elixir tailor everything to your studies.</p>
+      <div class="input-group">
+        <label class="input-label">Year / Grade</label>
+        <select class="input select" id="ob-grade">
+          <option value="">Select grade</option>
+          ${GRADES.map(g=>`<option ${ob.grade===g?"selected":""}>${g}</option>`).join("")}
+        </select>
+      </div>
+      <div class="input-group">
+        <label class="input-label">Study Region</label>
+        <select class="input select" id="ob-region">
+          <option value="">Select region</option>
+          ${REGIONS.map(r=>`<option ${ob.region===r?"selected":""}>${r}</option>`).join("")}
+        </select>
+      </div>
+      <div class="input-group">
+        <label class="input-label">Curriculum</label>
+        <select class="input select" id="ob-curr">
+          <option value="">Select curriculum</option>
+          ${CURRICULA.map(c=>`<option ${ob.curriculum===c?"selected":""}>${c}</option>`).join("")}
+        </select>
+      </div>
+      <button class="btn btn-primary btn-full mt-8" onclick="Auth._ob0Next()">Next: Pick subjects →</button>`;
+  }
+
+  static _ob0Next(){
+    const g=document.getElementById("ob-grade").value;
+    const r=document.getElementById("ob-region").value;
+    const c=document.getElementById("ob-curr").value;
+    if(!g||!r||!c){ Toast.error("Please fill in all fields."); return; }
+    Auth._ob.grade=g; Auth._ob.region=r; Auth._ob.curriculum=c;
+    Auth._ob.step=1;
+    Router.go("onboard");
+  }
+
+  static _ob1(el){
+    const picked=Auth._ob.picked;
+    el.innerHTML = `
+      <h2 class="auth-title">Which subjects?</h2>
+      <p class="auth-sub">Select all that apply.</p>
+      <div class="subject-grid">
+        ${SUBJECTS.map(s=>`
+          <button class="subject-btn${picked.includes(s.id)?" sel":""}" onclick="Auth._toggleSub('${s.id}',this)">
+            <span>${s.icon}</span> ${s.name}
+            <span class="check">✓</span>
+          </button>`).join("")}
+      </div>
+      <div style="display:flex;gap:10px;margin-top:8px;">
+        <button class="btn btn-ghost" onclick="Auth._ob.step=0;Router.go('onboard')">← Back</button>
+        <button class="btn btn-primary" style="flex:1;" onclick="Auth._ob1Next()">Next →</button>
+      </div>`;
+  }
+
+  static _toggleSub(id, btn){
+    const ob=Auth._ob;
+    if(ob.picked.includes(id)) ob.picked=ob.picked.filter(x=>x!==id);
+    else ob.picked.push(id);
+    btn.classList.toggle("sel");
+    btn.querySelector(".check").style.display=ob.picked.includes(id)?"block":"none";
+  }
+
+  static _ob1Next(){
+    if(Auth._ob.picked.length===0){ Toast.error("Pick at least one subject."); return; }
+    Auth._ob.step=2; Router.go("onboard");
+  }
+
+  static _ob2(el){
+    const ob=Auth._ob;
+    const subs=SUBJECTS.filter(s=>ob.picked.includes(s.id));
+    el.innerHTML = `
+      <h2 class="auth-title">How confident?</h2>
+      <p class="auth-sub">Be honest — this shapes how Elixir prioritises notes.</p>
+      ${subs.map(s=>`
+        <div class="slider-row">
+          <div class="slider-label">
+            <span class="slider-name">${s.icon} ${s.name}</span>
+            <span class="slider-val" id="sv-${s.id}" style="color:${PROF_COLORS[ob.profs[s.id]||"Developing"]}">${ob.profs[s.id]||"Developing"}</span>
+          </div>
+          <input type="range" min="0" max="3" value="${PROFICIENCY.indexOf(ob.profs[s.id]||"Developing")}"
+            oninput="Auth._slideProf('${s.id}',this.value)"/>
+        </div>`).join("")}
+      <div style="display:flex;gap:10px;margin-top:16px;">
+        <button class="btn btn-ghost" onclick="Auth._ob.step=1;Router.go('onboard')">← Back</button>
+        <button class="btn btn-primary" style="flex:1;" onclick="Auth._ob2Finish()">Start studying →</button>
+      </div>`;
+  }
+
+  static _slideProf(id,val){
+    const p=PROFICIENCY[+val];
+    Auth._ob.profs[id]=p;
+    const el=document.getElementById("sv-"+id);
+    if(el){ el.textContent=p; el.style.color=PROF_COLORS[p]||"#888"; }
+  }
+
+  static _ob2Finish(){
+    const ob=Auth._ob;
+    const session=Store.getSession();
+    const subjects=SUBJECTS.filter(s=>ob.picked.includes(s.id)).map(s=>({
+      ...s, proficiency: ob.profs[s.id]||"Developing"
+    }));
+    Store.setProfile(session.id,{
+      grade:ob.grade, region:ob.region, curriculum:ob.curriculum, subjects
+    });
+    Router.go("dashboard");
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// CLASS: AIManager — all Groq API calls
+// ═══════════════════════════════════════════════════════════════
+class AIManager {
+  static _subStr(profile){
+    return (profile.subjects||[]).map(s=>s.name+" ("+s.proficiency+")").join(", ")||"General";
+  }
+
+  // Safe minimal fallback — used only until the live fetch completes on boot.
+  // These are stable Groq models. If either is decommissioned, the live fetch
+  // will replace them automatically before the first real API call.
+  static _MODEL_CHAIN = [
+    "llama-3.3-70b-versatile",
+    "llama-3.1-8b-instant",
+    "llama3-8b-8192"
+  ];
+
+  // Fetches every live model from Groq and builds a ranked chain automatically.
+  // No hardcoded preferred list — the ranking is computed from the model IDs
+  // returned by the API, so decommissioned models are never used.
+  static async refreshAvailableModels() {
+    const key = Store.getApiKey();
+    if (!key) return;
+    try {
+      const resp = await fetch("/models", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ key })
+      });
+      if (!resp.ok) return;
+      const data = await resp.json();
+
+      // Exclude non-chat models (audio transcription, TTS, safety classifiers,
+      // embeddings, vision-only, distil variants) — these can't do text chat.
+      const SKIP = /whisper|tts|guard|embed|vision|distil|playai/i;
+      const chatModels = (data.data || [])
+        .map(m => m.id)
+        .filter(id => !SKIP.test(id));
+
+      // Score each model by apparent capability extracted from its ID string.
+      // Higher score = more capable = preferred earlier in the chain.
+      function score(id) {
+        const lo = id.toLowerCase();
+        // Parameter count is the primary signal (70b >> 8b)
+        const paramMatch = lo.match(/(\d+)b/);
+        const params = paramMatch ? parseInt(paramMatch[1], 10) : 7;
+        // Versatile / instruct models handle long-form generation better
+        const bonus = /versatile|instruct/.test(lo) ? 4 : 0;
+        // "instant" models are fast but smaller — slightly deprioritise
+        const penalty = /instant/.test(lo) ? -3 : 0;
+        // Preview / experimental builds may be unstable — slight penalty
+        const previewPenalty = /preview|experimental|beta/.test(lo) ? -2 : 0;
+        return params + bonus + penalty + previewPenalty;
+      }
+
+      chatModels.sort((a, b) => score(b) - score(a));
+
+      if (chatModels.length > 0) {
+        AIManager._MODEL_CHAIN = chatModels;
+        console.log("Elixir: live model chain →", chatModels.slice(0, 5).join(", "));
+      }
+    } catch(e) {
+      console.warn("Elixir: could not refresh models, retaining safe defaults.", e);
+    }
+  }
+
+  static async callGroq(messages, model, maxTokens){
+    const requestedModel = model || "llama-3.3-70b-versatile";
+    maxTokens = maxTokens || 4096;
+    const key = Store.getApiKey();
+    if(!key) throw new Error("No Groq API key. Enter it on the home screen.");
+
+    // Build ordered list: requested model first, then the rest of the chain
+    const chain = [requestedModel, ...AIManager._MODEL_CHAIN.filter(m=>m!==requestedModel)];
+
+    let lastError = null;
+    for(let attempt=0; attempt<chain.length; attempt++){
+      const modelToUse = chain[attempt];
+      if(attempt > 0){
+        console.warn(`Elixir: falling back from '${chain[attempt-1]}' to '${modelToUse}' — ${lastError.message}`);
+      }
+      let resp;
+      try{
+        resp = await fetch("/groq",{
+          method:"POST",
+          headers:{"Content-Type":"application/json"},
+          body: JSON.stringify({key, model:modelToUse, messages, max_tokens:maxTokens})
+        });
+      }catch(e){
+        throw new Error("Cannot reach local server. Run: python3 server.py  ("+e.message+")");
+      }
+
+      if(resp.ok){
+        const data = await resp.json();
+        if(!data.choices||!data.choices[0]) throw new Error("Empty response from Groq.");
+        return data.choices[0].message.content||"";
+      }
+
+      // Parse error
+      const errText = await resp.text().catch(()=>""+resp.status);
+      let errMsg = "Groq error "+resp.status+": "+errText;
+      try{ const j=JSON.parse(errText); if(j.error&&j.error.message) errMsg=j.error.message; }catch(_){}
+
+      // Decide whether to try next model or give up immediately
+      const isRateOrToken = (
+        resp.status===429 ||                        // rate limit HTTP code
+        /rate.limit/i.test(errMsg) ||               // "rate_limit_exceeded"
+        /token.*limit/i.test(errMsg) ||             // "tokens_per_minute"
+        /quota/i.test(errMsg) ||                    // quota exceeded
+        /context.*length/i.test(errMsg) ||          // context window exceeded
+        /too.many.request/i.test(errMsg) ||         // too many requests
+        /model.*not.*found/i.test(errMsg) ||        // model unavailable
+        /unavailable/i.test(errMsg)
+      );
+
+      lastError = new Error(errMsg);
+      if(!isRateOrToken || attempt === chain.length-1){
+        // Non-retryable error, or we've exhausted the fallback chain
+        throw lastError;
+      }
+      // Small pause before retrying the next model
+      await new Promise(r=>setTimeout(r,400));
+    }
+    throw lastError;
+  }
+
+  static async analyzeImage(base64str, profile){
+    const subs=this._subStr(profile);
+    const lines=[
+      "You are Elixir AI, expert tutor for "+profile.grade+" "+profile.curriculum+" students in "+profile.region+". Subjects: "+subs+". NEVER use LaTeX dollar signs ($) or \\[ \\] for math — use plain text with ^ for powers and _ for subscripts.",
+      "",
+      "STUDY NOTES ONLY — no timetables or schedules.",
+      "",
+      "## Formulas & Equations",
+      "Every formula, law or identity visible — name, expression, variables, SI units.",
+      "",
+      "## Key Concepts & Definitions",
+      "Thorough notes on every concept shown. Cover all sub-topics in depth.",
+      "",
+      "## Worked Examples",
+      "Full working for every question/calculation:",
+      "```",
+      "Given: ...",
+      "Find: ...",
+      "Step 1: ...",
+      "Answer: value + unit",
+      "```",
+      "",
+      "## Diagrams & Visual Aids",
+      "Markdown tables and ASCII art for key diagrams.",
+      "",
+      "## Exam Practice Questions",
+      "5 exam-style questions with full mark-scheme answers. Be thorough."
+    ];
+    const prompt=lines.join("\n");
+    return this.callGroq([{
+      role:"user",
+      content:[
+        {type:"image_url",image_url:{url:"data:image/jpeg;base64,"+base64str}},
+        {type:"text",text:prompt}
+      ]
+    }], "meta-llama/llama-4-scout-17b-16e-instruct", 4096);
+  }
+
+  static async analyzeText(text, profile){
+    const trunc = text.slice(0, 16000) + (text.length > 16000 ? "\n\n[...content truncated]" : "");
+    const wordCount = trunc.trim().split(/\s+/).length;
+    const isSparse  = wordCount < 300;
+
+    // ── System message ────────────────────────────────────────────────────────
+    const sysMsg = [
+      "You are a subject-matter expert writing revision notes for a",
+      profile.grade, profile.curriculum, "student.",
+      "Your notes must read exactly like a top student's hand-written notes —",
+      "factual, specific, and direct. Never describe the file or what it contains.",
+      "",
+      "FORMATTING:",
+      "- Bold key terms using **term** — NEVER use [BOLD: term] or [KEY TERM: term] syntax.",
+      "- Headings: ## for main topics, ### for sub-topics.",
+      "- Bullet points for lists of facts.",
+      "- Tables using | Col | Col | syntax for comparisons.",
+      "- No LaTeX. Plain text maths only.",
+      "",
+      "WRITING STYLE — this is the most important rule:",
+      "Every sentence must STATE a fact, not describe that a fact exists.",
+      "FORBIDDEN openers: 'This', 'The document', 'The material', 'The presentation',",
+      "'The file', 'The slides', 'This topic covers', 'This section discusses',",
+      "'X is a topic that will be explored', 'X is a significant Y that is to be Z'.",
+      "CORRECT style examples:",
+      "  BAD: 'Timbuktu is a significant location in Mali that is to be explored.'",
+      " GOOD: 'Timbuktu was the intellectual capital of the Mali Empire, home to the",
+      "        Sankore University and over 700,000 manuscripts by the 16th century.'",
+      "  BAD: 'Trade is an important aspect of Mali that students should understand.'",
+      " GOOD: 'Mali's wealth came from controlling trans-Saharan gold and salt trade.",
+      "        Mansa Musa's 1324 pilgrimage to Mecca distributed so much gold it caused",
+      "        inflation across North Africa and the Middle East.'",
+    ].join(" ");
+
+    // ── User message branches on content density ──────────────────────────────
+    let userMsg;
+
+    if (isSparse) {
+      // File content is mostly images — only headings/titles were extracted.
+      // Write complete curriculum-level notes for each topic using accurate
+      // external knowledge, as if the student's teacher wrote them.
+      userMsg = [
+        "The file below contains only headings and limited text because the main content",
+        "is inside images that cannot be extracted.",
+        "",
+        "Your task: write complete, detailed study notes for each heading/topic listed.",
+        "Use accurate historical/academic knowledge appropriate for",
+        profile.grade, profile.curriculum + ".",
+        "",
+        "For EACH topic you find, write:",
+        "1. A ## heading with the topic name",
+        "2. At least 4-6 specific bullet points of real facts, dates, names, and causes",
+        "3. Any key terms in **bold**",
+        "",
+        "Do NOT write vague or circular sentences like 'X is an important concept.'",
+        "Write the actual facts, events, people, dates, and significance — as a teacher would.",
+        "",
+        "--- FILE CONTENT ---",
+        "",
+        trunc
+      ].join("\n");
+    } else {
+      // File has substantial text — extract and organise it.
+      userMsg = [
+        "Write complete study notes from the material below.",
+        "",
+        "STEP 1 — Identify every distinct topic.",
+        "STEP 2 — Write one ## section per topic, named after that topic.",
+        "STEP 3 — Under each heading, write all the facts, definitions, dates, causes,",
+        "         consequences, and examples from the material. Nothing skipped.",
+        "STEP 4 — ## Key Terms: define every important term in **bold**.",
+        "STEP 5 — ## Summary: 6-10 bullet points covering all major ideas.",
+        "",
+        "--- MATERIAL ---",
+        "",
+        trunc
+      ].join("\n");
+    }
+
+    return this.callGroq([
+      {role:"system", content:sysMsg},
+      {role:"user",   content:userMsg}
+    ], null, 6000);
+  }
+}
+
+// CLASS: SpaceManager
+// ═══════════════════════════════════════════════════════════════
+class SpaceManager {
+  static open(id){
+    const session=Store.getSession();
+    const sp=Store.getSpaces(session.id).find(s=>s.id===id);
+    if(sp){ Router.go("space",{space:sp}); }
+  }
+
+  static confirmDelete(id){
+    const session=Store.getSession();
+    const sp=Store.getSpaces(session.id).find(s=>s.id===id);
+    const name=sp?sp.name:"this space";
+    if(!window.confirm("Delete ‘"+name+"’? This cannot be undone.")) return;
+    SpaceManager.delete(id);
+  }
+
+  static delete(id){
+    const session=Store.getSession();
+    const spaces=Store.getSpaces(session.id).filter(s=>s.id!==id);
+    Store.setSpaces(session.id, spaces);
+    Toast.success("Space deleted");
+    Router.go("dashboard");
+  }
+
+  static renderNew(el){
+    el.innerHTML = `
+      <div style="max-width:440px;margin:0 auto;" class="fade-in">
+        <button class="back-link" onclick="Router.go('dashboard')">← Dashboard</button>
+        <h1 class="page-title">Create a space</h1>
+        <div class="input-group">
+          <label class="input-label">Space name</label>
+          <input class="input" id="sp-name" type="text" placeholder="e.g. Biology Revision"/>
+        </div>
+        <div class="input-group">
+          <label class="input-label">Icon</label>
+          <div style="display:flex;flex-wrap:wrap;gap:8px;" id="icon-picker">
+            ${SPACE_ICONS.map((ic,i)=>`<button onclick="SpaceManager.pickIcon('${ic}',this)" style="width:38px;height:38px;border-radius:8px;background:var(--bg2);border:1.5px solid var(--border);font-size:16px;cursor:pointer;transition:all .15s;${i===0?"border-color:var(--cyan);background:var(--bg3);":""}">${ic}</button>`).join("")}
+          </div>
+        </div>
+        <div class="input-group">
+          <label class="input-label">Colour</label>
+          <div style="display:flex;flex-wrap:wrap;gap:8px;" id="color-picker">
+            ${Object.entries(SPACE_COLORS).map(([name,hex],i)=>`
+              <button onclick="SpaceManager.pickColor('${hex}',this)" title="${name}"
+                style="width:28px;height:28px;border-radius:50%;background:${hex};border:2.5px solid ${i===0?"#fff":"transparent"};cursor:pointer;transition:border .15s;"></button>`).join("")}
+          </div>
+        </div>
+        <div class="input-group">
+          <label class="input-label">Subject (optional)</label>
+          <select class="input select" id="sp-subj">
+            <option value="General">General</option>
+            ${(Store.getProfile(Store.getSession().id)||{}).subjects?.map(s=>`<option>${s.name}</option>`).join("")||""}
+          </select>
+        </div>
+        <button class="btn btn-primary btn-full mt-16" onclick="SpaceManager.create()">Create space</button>
+      </div>`;
+    SpaceManager._icon=SPACE_ICONS[0];
+    SpaceManager._color=Object.values(SPACE_COLORS)[0];
+  }
+
+  static pickIcon(ic,btn){
+    SpaceManager._icon=ic;
+    document.querySelectorAll("#icon-picker button").forEach(b=>{
+      b.style.borderColor="var(--border)"; b.style.background="var(--bg2)";
+    });
+    btn.style.borderColor="var(--cyan)"; btn.style.background="var(--bg3)";
+  }
+
+  static pickColor(hex,btn){
+    SpaceManager._color=hex;
+    document.querySelectorAll("#color-picker button").forEach(b=>b.style.borderColor="transparent");
+    btn.style.borderColor="#fff";
+  }
+
+  static create(){
+    const name=document.getElementById("sp-name").value.trim();
+    if(!name){ Toast.error("Enter a space name."); return; }
+    const session=Store.getSession();
+    const sp={id:"sp"+Date.now(),name,icon:SpaceManager._icon||"▣",color:SpaceManager._color||"#3BBFAF",subject:document.getElementById("sp-subj").value};
+    const spaces=Store.getSpaces(session.id);
+    spaces.unshift(sp);
+    Store.setSpaces(session.id,spaces);
+    Sidebar.close();
+    Router.go("space",{space:sp});
+  }
+
+  static renderSpace(el, {space}={}){
+    if(!space){ Router.go("dashboard"); return; }
+    const session=Store.getSession();
+    const notes=Store.getNotes(session.id,space.id);
+    el.innerHTML = `
+      <div class="fade-in">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:20px;">
+          <button class="back-link" onclick="Router.go('dashboard')" style="margin:0;">←</button>
+          <span style="font-size:20px;color:${space.color}">${space.icon}</span>
+          <h1 style="font-size:18px;font-weight:700;">${space.name}</h1>
+          <span style="font-size:12px;color:var(--text3);">${space.subject}</span>
+        </div>
+        <hr class="divider"/>
+
+        <div class="upload-zone" id="upload-zone" onclick="document.getElementById('file-input').click()"
+          ondragover="event.preventDefault();this.classList.add('drag')"
+          ondragleave="this.classList.remove('drag')"
+          ondrop="SpaceManager.handleDrop(event,'${space.id}','${session.id}')">
+          <input type="file" id="file-input" accept="image/*,.pdf,.txt,.md,.csv,.json,.pptx,.ppt,.docx,.doc,.xlsx,.xls,.odt,.odp,.ods,.rtf" multiple
+            onchange="SpaceManager.handleFiles(this.files,'${space.id}','${session.id}')"/>
+          <div class="upload-icon">⬆</div>
+          <div class="upload-text">Upload revision material</div>
+          <div class="upload-hint">Images, PDFs, Word (.docx/.doc), PowerPoint (.pptx/.ppt), Excel (.xlsx/.xls), OpenDocument, RTF, text files</div>
+        </div>
+        <div id="upload-progress" class="hidden"></div>
+
+        <div id="notes-list" style="margin-top:24px;">
+          ${SpaceManager._renderNotes(notes)}
+        </div>
+      </div>`;
+  }
+
+  static _renderNotes(notes){
+    if(!notes.length) return `
+      <div style="text-align:center;padding:40px;border:2px dashed var(--border);border-radius:var(--radius);">
+        <div style="font-size:28px;opacity:.3;margin-bottom:8px;">↑</div>
+        <p style="color:var(--text3);font-size:13px;">Upload your first file to generate study notes.</p>
+      </div>`;
+    return `<h3 class="section-title">Study Notes (${notes.length})</h3>`+
+      notes.map((n,i)=>`
+        <div class="note-card">
+          <div class="note-header" onclick="SpaceManager.toggleNote('note-${n.id}')">
+            <div>
+              <div class="note-title">${n.isImage?"🖼":"📄"}  ${n.title}</div>
+              <div class="note-meta">${n.created}</div>
+            </div>
+            <span style="color:var(--text3);font-size:12px;">▾</span>
+          </div>
+          <div class="note-body${i===0?" open":""}" id="note-${n.id}">
+            ${n.isImage&&n.thumb?`<img src="${n.thumb}" style="max-width:100%;border-radius:8px;margin-bottom:12px;"/>`:``}
+            <div style="font-size:13px;line-height:1.8;">${SpaceManager._mdToHtml(n.analysis)}</div>
+            <div class="note-actions">
+              <button class="btn btn-ghost btn-sm" onclick="SpaceManager.downloadNote('${n.id}')">Download .txt</button>
+              <button class="btn btn-ghost btn-sm" onclick="SpaceManager.copyNote('${n.id}')">Copy</button>
+            </div>
+          </div>
+        </div>`).join("");
+  }
+
+  static _mdToHtml(text){
+    // ── Normalise line endings ─────────────────────────────────────────────
+    text = text.replace(/\r\n/g,"\n").replace(/\r/g,"\n");
+    if(!text.endsWith("\n")) text += "\n";
+
+    // ── Step 1: strip LaTeX markup ─────────────────────────────────────────
+    text = text
+      .replace(/\\frac\{([^}]*)\}\{([^}]*)\}/g,"($1)/($2)")
+      .replace(/\\sqrt\{([^}]*)\}/g,"\u221a($1)")
+      .replace(/\\sqrt/g,"\u221a")
+      .replace(/\\cdot/g,"\u00b7")
+      .replace(/\\times/g,"\u00d7")
+      .replace(/\\div/g,"\u00f7")
+      .replace(/\\pm/g,"\u00b1")
+      .replace(/\\mp/g,"\u2213")
+      .replace(/\\leq/g,"\u2264")
+      .replace(/\\geq/g,"\u2265")
+      .replace(/\\neq/g,"\u2260")
+      .replace(/\\approx/g,"\u2248")
+      .replace(/\\equiv/g,"\u2261")
+      .replace(/\\infty/g,"\u221e")
+      .replace(/\\partial/g,"\u2202")
+      .replace(/\\nabla/g,"\u2207")
+      .replace(/\\Delta/g,"\u0394")
+      .replace(/\\Sigma/g,"\u03a3")
+      .replace(/\\Pi/g,"\u03a0")
+      .replace(/\\alpha/g,"\u03b1")
+      .replace(/\\beta/g,"\u03b2")
+      .replace(/\\gamma/g,"\u03b3")
+      .replace(/\\delta/g,"\u03b4")
+      .replace(/\\epsilon/g,"\u03b5")
+      .replace(/\\theta/g,"\u03b8")
+      .replace(/\\lambda/g,"\u03bb")
+      .replace(/\\mu/g,"\u03bc")
+      .replace(/\\pi/g,"\u03c0")
+      .replace(/\\sigma/g,"\u03c3")
+      .replace(/\\phi/g,"\u03c6")
+      .replace(/\\omega/g,"\u03c9")
+      .replace(/\\rho/g,"\u03c1")
+      .replace(/\\eta/g,"\u03b7")
+      .replace(/\\tau/g,"\u03c4")
+      .replace(/\\left[\[{(|\\]/g,"(")
+      .replace(/\\right[\])}|\\]/g,")")
+      .replace(/\\[a-zA-Z]+/g,"")
+      .replace(/\$\$([^$]*)\$\$/g,"$1")
+      .replace(/\$([^$\n]*)\$/g,"$1")
+      .replace(/\{([^}]*)\}/g,"$1");
+
+    // ── Helpers ────────────────────────────────────────────────────────────
+    function parseCells(row){
+      return row.replace(/^\|/,"").replace(/\|$/,"").split("|").map(c=>c.trim());
+    }
+
+    // Render a raw pipe-table block directly to clean HTML.
+    // Isolated from the markdown pass so HTML tags in the result
+    // are never re-escaped and the subscript regex can't corrupt it.
+    function buildTable(block){
+      const rows = block.trim().split("\n").map(r=>r.trim()).filter(Boolean);
+      const sepIdx = rows.findIndex(r=>/^\|[\s:\-|]+\|$/.test(r));
+      const TH = c=>`<th style="padding:8px 14px;background:var(--bg3);color:var(--cyan);font-size:12px;font-weight:700;text-align:left;border:1px solid var(--border2);">${c}</th>`;
+      const TD = c=>`<td style="padding:7px 14px;font-size:12.5px;border:1px solid var(--border2);">${c}</td>`;
+      const WRAP = inner=>`<div style="overflow-x:auto;margin:14px 0;"><table style="border-collapse:collapse;width:100%;background:var(--bg2);">${inner}</table></div>`;
+      if(sepIdx >= 1){
+        const thead = "<thead><tr>"+parseCells(rows[0]).map(TH).join("")+"</tr></thead>";
+        const tbody = "<tbody>"+rows.slice(sepIdx+1).map(r=>"<tr>"+parseCells(r).map(TD).join("")+"</tr>").join("")+"</tbody>";
+        return WRAP(thead+tbody);
+      }
+      const tbody = "<tbody>"+rows.map(r=>"<tr>"+parseCells(r).map(TD).join("")+"</tr>").join("")+"</tbody>";
+      return WRAP(tbody);
+    }
+
+    // Apply HTML-escaping and inline markdown to non-table text only.
+    function renderInline(chunk){
+      // Render formatting markers from the extraction layer BEFORE HTML-escaping,
+      // so the brackets are still intact. The AI should output **bold** but as a
+      // safety net we also handle literal [BOLD: x] / [UNDERLINE: x] / [KEY TERM: x].
+      chunk = chunk
+        .replace(/\[KEY TERM:\s*([^\]]+)\]/g, "**$1**")
+        .replace(/\[BOLD:\s*([^\]]+)\]/g,     "**$1**")
+        .replace(/\[UNDERLINE:\s*([^\]]+)\]/g, "<u>$1</u>") // render before HTML escaping
+      return chunk
+        .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")
+        .replace(/\^([A-Za-z0-9.]+)/g,"<sup>$1</sup>")
+        .replace(/_([A-Za-z0-9]+)/g,"<sub>$1</sub>")
+        .replace(/\*\*([^*]+)\*\*/g,"<strong>$1</strong>")
+        .replace(/\*([^*\n]+)\*/g,"<em>$1</em>")
+        .replace(/`([^`]+)`/g,'<code style="background:var(--bg3);padding:1px 5px;border-radius:3px;font-family:var(--mono);font-size:12px;">$1</code>')
+        .replace(/^## (.+)$/gm,'<h3 style="font-size:14px;font-weight:700;margin:16px 0 6px;color:var(--cyan);">$1</h3>')
+        .replace(/^### (.+)$/gm,'<h4 style="font-size:13px;font-weight:600;margin:12px 0 4px;">$1</h4>')
+        .replace(/\bcirc\b/g,"\u00b0")
+        .replace(/\n/g,"<br/>");
+    }
+
+    // ── Steps 2+3: split on table blocks, render each segment in isolation ─
+    // This is the root fix for the token-corruption problem: table HTML and
+    // inline markdown are applied to completely separate string segments so
+    // the subscript regex _([A-Za-z0-9]+) can NEVER corrupt a table token,
+    // and HTML inside built tables is never double-escaped.
+    const TABLE_RE = /((?:\|[^\n]+\n){2,})/g;
+    const parts = [];
+    let last = 0, m;
+    while((m = TABLE_RE.exec(text)) !== null){
+      if(m.index > last) parts.push(renderInline(text.slice(last, m.index)));
+      parts.push(buildTable(m[0]));
+      last = m.index + m[0].length;
+    }
+    if(last < text.length) parts.push(renderInline(text.slice(last)));
+    return parts.join("");
+  }
+  static toggleNote(id){
+    const el=document.getElementById(id);
+    if(el) el.classList.toggle("open");
+  }
+
+  static _noteStore={};
+
+  static downloadNote(id){
+    const note=SpaceManager._noteStore[id];
+    if(!note) return;
+    const a=document.createElement("a");
+    a.href="data:text/plain;charset=utf-8,"+encodeURIComponent(note.analysis);
+    a.download=note.title+"_notes.txt"; a.click();
+  }
+
+  static copyNote(id){
+    const note=SpaceManager._noteStore[id];
+    if(note) navigator.clipboard.writeText(note.analysis).then(()=>Toast.success("Copied!"));
+  }
+
+  static handleDrop(e,sid,uid){
+    e.preventDefault();
+    document.getElementById("upload-zone")?.classList.remove("drag");
+    SpaceManager.handleFiles(e.dataTransfer.files,sid,uid);
+  }
+
+  static async handleFiles(files,sid,uid){
+    for(const file of files){
+      await SpaceManager.processFile(file,sid,uid);
+    }
+  }
+
+  static async processFile(file,sid,uid){
+    /* ── Determine if the file can be read as plain text by the browser ── */
+    const BINARY_EXTS = new Set([
+      // Modern Office
+      "pdf","docx","pptx","xlsx",
+      // Legacy Office (OLE2 binary) — now fully supported
+      "doc","ppt","xls",
+      // OpenDocument
+      "odt","odp","ods",
+      // Rich Text
+      "rtf"
+    ]);
+    const ext = file.name.split(".").pop().toLowerCase();
+    const isBinary = BINARY_EXTS.has(ext);
+    const isImage  = file.type.startsWith("image/");
+
+    /* ── Progress helpers ── */
+    const prog = document.getElementById("upload-progress");
+    function showProg(msg){
+      if(!prog) return;
+      prog.className = "progress-row";
+      prog.innerHTML =
+        '<div style="font-size:13px;color:var(--text2);margin-bottom:6px;">Analysing <strong>' +
+        file.name + '</strong>…</div>' +
+        '<div class="progress-track"><div class="progress-thumb" id="pthumb" style="width:10%"></div></div>' +
+        '<div class="progress-msg" id="pmsg">' + msg + '</div>';
+    }
+    function setP(pct, msg){
+      const t = document.getElementById("pthumb");
+      const m = document.getElementById("pmsg");
+      if(t) t.style.width = pct + "%";
+      if(m) m.textContent = msg;
+    }
+    showProg("Reading file…");
+
+    const profile = Store.getProfile(uid) || {};
+    let note;
+    try{
+      if(isImage){
+        /* ── IMAGE: base64 → vision model ── */
+        setP(25, "Reading image…");
+        const dataUrl = await new Promise((res,rej)=>{
+          const r = new FileReader();
+          r.onload  = ()=>res(r.result);
+          r.onerror = ()=>rej(new Error("FileReader failed"));
+          r.readAsDataURL(file);
+        });
+        setP(50, "Sending to Groq AI…");
+        const analysis = await AIManager.analyzeImage(dataUrl.split(",")[1], profile);
+        setP(90, "Saving…");
+        note = {
+          id: "n" + Date.now(),
+          title: file.name.replace(/\.[^.]+$/, ""),
+          isImage: true, thumb: dataUrl,
+          analysis, filename: file.name,
+          created: new Date().toLocaleDateString("en-GB",{day:"2-digit",month:"short",year:"numeric"})
+        };
+
+      } else if(isBinary){
+        /* ── BINARY (PDF, DOCX, PPTX …): send raw bytes to /extract ── */
+        // The file is sent as-is in the request body (no base64, no JSON wrapper).
+        // The server returns {"text": "...", "error": null} or {"text": "", "error": "msg"}.
+        setP(25, "Extracting text from " + ext.toUpperCase() + "\u2026");
+        let text = "";
+        try{
+          const resp = await fetch("/extract?filename=" + encodeURIComponent(file.name), {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/octet-stream"
+            },
+            body: file   // send raw binary directly — no encoding needed
+          });
+          if(resp.ok){
+            const data = await resp.json();
+            if(data.error){
+              // Server extracted fine but hit a real error (missing lib, bad file, etc.)
+              const isInstallError = /not installed/i.test(data.error);
+              if(prog) prog.innerHTML =
+                '<p style="color:var(--amber);padding:8px 0;">⚠ <strong>Extraction failed:</strong> ' +
+                data.error + '</p>' +
+                (isInstallError
+                  ? '<p style="font-size:11px;color:var(--text3);margin-top:6px;">Run: <code>python3 -m pip install python-pptx python-docx pypdf openpyxl</code> then restart server.py</p>'
+                  : '<p style="font-size:11px;color:var(--text3);margin-top:6px;">If the file is password-protected or image-only, try exporting to PDF first.</p>');
+              Toast.error("Extraction failed — " + data.error.split(":")[0]);
+              return;
+            }
+            text = (data.text || "").trim();
+          } else {
+            console.warn("Extract endpoint returned", resp.status);
+          }
+        }catch(serverErr){
+          console.warn("Extract server unavailable:", serverErr.message);
+        }
+
+        /* ── Guard: no text extracted but server didn't error ── */
+        if(!text || text.length < 20){
+          if(prog) prog.innerHTML =
+            '<p style="color:var(--amber);padding:8px 0;">⚠ <strong>No text found in ' +
+            file.name + '</strong>.<br/>' +
+            '<span style="color:var(--text3);font-size:11px;">The file may be image-only or password-protected.' +
+            ' Try exporting to PDF first.</span></p>';
+          Toast.error("No text found in " + file.name);
+          return;
+        }
+
+                setP(55, "Sending to Groq AI…");
+        const analysis = await AIManager.analyzeText(text, profile);
+        setP(90, "Saving…");
+        note = {
+          id: "n" + Date.now(),
+          title: file.name.replace(/\.[^.]+$/, ""),
+          isImage: false, thumb: null,
+          analysis, filename: file.name,
+          created: new Date().toLocaleDateString("en-GB",{day:"2-digit",month:"short",year:"numeric"})
+        };
+
+      } else {
+        /* ── PLAIN TEXT (txt, md, csv, json …): read directly ── */
+        setP(25, "Reading file…");
+        let text = "";
+        try{
+          text = await file.text();
+        }catch(readErr){
+          text = "[Could not read file as text: " + readErr.message + "]";
+        }
+        // Sanity-check: if the text looks like binary (>30% non-printable), warn
+        const nonPrint = (text.match(/[\x00-\x08\x0e-\x1f\x7f-\x9f]/g)||[]).length;
+        if(nonPrint / Math.max(text.length,1) > 0.3){
+          text = "[Binary content detected — could not extract readable text from '" +
+            file.name + "'. Please upload the file via the server (python3 server.py) for full extraction support.]";
+        }
+        setP(50, "Sending to Groq AI…");
+        const analysis = await AIManager.analyzeText(text, profile);
+        setP(90, "Saving…");
+        note = {
+          id: "n" + Date.now(),
+          title: file.name.replace(/\.[^.]+$/, ""),
+          isImage: false, thumb: null,
+          analysis, filename: file.name,
+          created: new Date().toLocaleDateString("en-GB",{day:"2-digit",month:"short",year:"numeric"})
+        };
+      }
+
+      /* ── Persist and refresh UI ── */
+      SpaceManager._noteStore[note.id] = note;
+      const notes = Store.getNotes(uid, sid);
+      notes.unshift(note);
+      Store.setNotes(uid, sid, notes);
+      notes.forEach(n=>{ SpaceManager._noteStore[n.id] = n; });
+
+      setP(100, "Done ✓");
+      setTimeout(()=>{ if(prog) prog.className = "hidden"; }, 800);
+      const nl = document.getElementById("notes-list");
+      if(nl){ nl.innerHTML = SpaceManager._renderNotes(notes); }
+      // Re-index noteStore after re-render
+      notes.forEach(n=>{ SpaceManager._noteStore[n.id] = n; });
+      Toast.success("Study notes saved!");
+
+    }catch(e){
+      if(prog) prog.innerHTML = '<p style="color:var(--red);padding:8px;">Error: ' + e.message + '</p>';
+      Toast.error(e.message);
+    }
+  }
+
+  static _fileToB64(file){
+    return new Promise((res,rej)=>{
+      const r=new FileReader();
+      r.onload=()=>res(r.result);
+      r.onerror=rej;
+      r.readAsDataURL(file);
+    });
+  }
+
+
+}
+
+// ═══════════════════════════════════════════════════════════════
+// CLASS: Dashboard
+// ═══════════════════════════════════════════════════════════════
+class Dashboard {
+  static _tipIdx = Store.getTipIdx();
+
+  static render(el){
+    const session=Store.getSession();
+    const profile=Store.getProfile(session.id)||{};
+    const spaces=Store.getSpaces(session.id);
+    const isAdmin=session.isAdmin;
+
+    const hr = new Date().getHours();
+    const greet = hr < 12 ? "morning" : hr < 18 ? "afternoon" : "evening";
+
+    el.innerHTML = `
+      <div class="fade-in">
+        <h2 style="font-size:22px;font-weight:700;margin-bottom:2px;">
+          Good ${greet}, ${session.username}
+          ${isAdmin?'<span class="badge badge-cyan" style="font-size:10px;vertical-align:middle;margin-left:6px;">Admin</span>':""}
+        </h2>
+        <p style="font-size:12.5px;color:var(--text2);margin-bottom:16px;">
+          ${profile.grade||""} · ${profile.curriculum||""} · ${profile.region||""}
+        </p>
+        <hr class="divider"/>
+
+        <div class="two-col">
+
+          <!-- LEFT column: Spaces + Calendar (grows with content, defines height limit) -->
+          <div>
+            <h3 class="section-title">Spaces
+              ${isAdmin?'<span class="badge badge-cyan" style="font-size:10px;vertical-align:middle;margin-left:8px;">Admin</span>':""}
+            </h3>
+            ${spaces.length===0?`
+              <div style="border:2px dashed var(--border);border-radius:var(--radius);padding:32px;text-align:center;">
+                <p style="color:var(--text3);font-size:13px;">No spaces yet.<br/>Use <strong style="color:var(--cyan);">＋ New Space</strong> in the sidebar.</p>
+              </div>`:`
+              <div class="dash-grid">
+                ${spaces.map(sp=>`
+                  <div class="space-card" style="border-left:3px solid ${sp.color};display:flex;align-items:stretch;padding:0;overflow:hidden;">
+                    <div style="flex:1;padding:14px;display:flex;align-items:center;gap:8px;cursor:pointer;" onclick="Sidebar.close();SpaceManager.open('${sp.id}')">
+                      <span style="font-size:20px;color:${sp.color};">${sp.icon}</span>
+                      <div style="flex:1;min-width:0;">
+                        <div style="font-weight:700;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${sp.name}</div>
+                        <div style="font-size:10px;color:var(--text3);">${sp.subject}</div>
+                      </div>
+                    </div>
+                    <button onclick="event.stopPropagation();SpaceManager.confirmDelete('${sp.id}')"
+                      title="Delete space"
+                      style="flex:0 0 33%;border-left:1px solid var(--border);background:transparent;border-top:none;border-right:none;border-bottom:none;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .2s,color .2s,box-shadow .2s;color:var(--text3);font-size:28px;padding:0;"
+                      onmouseover="this.style.background='rgba(220,38,38,0.12)';this.style.color='#dc2626';this.style.boxShadow='inset 0 0 18px rgba(220,38,38,0.18)'"
+                      onmouseout="this.style.background='transparent';this.style.color='var(--text3)';this.style.boxShadow='none'">🗑</button>
+                  </div>`).join("")}
+              </div>`}
+            <!-- Calendar fills the rest of the left column -->
+            <div id="cal-container" style="margin-top:auto;padding-top:4px;"></div>
+          </div>
+
+          <!-- RIGHT column: Tips + scrollable Subjects — height capped to match left col -->
+          <div>
+            <h3 class="section-title">Study Tips</h3>
+            <div class="tip-box" id="tip-text">${STUDY_TIPS[Dashboard._tipIdx]}</div>
+            <div class="tip-nav mt-8">
+              <button onclick="Dashboard.prevTip()">← Prev</button>
+              <span class="tip-counter">${Dashboard._tipIdx+1} / ${STUDY_TIPS.length}</span>
+              <button onclick="Dashboard.nextTip()">Next →</button>
+            </div>
+
+            ${profile.subjects?.length?`
+              <h3 class="section-title mt-16">Your Subjects</h3>
+              <!-- Subjects scroll within remaining height; flex:1+min-height:0 caps it to col height -->
+              <div style="overflow-y:auto;flex:1;min-height:0;max-height:300px;padding-right:4px;">
+                ${profile.subjects.map(s=>`
+                  <div class="subject-row">
+                    <span class="subject-row-name">${s.icon} ${s.name}</span>
+                    <span class="subject-row-badge" style="background:${PROF_COLORS[s.proficiency]||"#888"}18;color:${PROF_COLORS[s.proficiency]||"#888"};">
+                      ${s.proficiency}
+                    </span>
+                  </div>`).join("")}
+              </div>`:""} 
+          </div>
+
+        </div>
+      </div>`;
+
+    // Render the calendar into the placeholder
+    CalendarManager.renderWidget(document.getElementById("cal-container"));
+  }
+  static prevTip(){
+    Dashboard._tipIdx=(Dashboard._tipIdx-1+STUDY_TIPS.length)%STUDY_TIPS.length;
+    Store.setTipIdx(Dashboard._tipIdx);
+    const el=document.getElementById("tip-text");
+    if(el) el.innerHTML=STUDY_TIPS[Dashboard._tipIdx];
+    const counter=document.querySelector(".tip-counter");
+    if(counter) counter.textContent=`${Dashboard._tipIdx+1} / ${STUDY_TIPS.length}`;
+  }
+  static nextTip(){
+    Dashboard._tipIdx=(Dashboard._tipIdx+1)%STUDY_TIPS.length;
+    Store.setTipIdx(Dashboard._tipIdx);
+    const el=document.getElementById("tip-text");
+    if(el) el.innerHTML=STUDY_TIPS[Dashboard._tipIdx];
+    const counter=document.querySelector(".tip-counter");
+    if(counter) counter.textContent=`${Dashboard._tipIdx+1} / ${STUDY_TIPS.length}`;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// CLASS: StudyPlanManager
+// ═══════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════
+// CLASS: QuizManager — per-day quizzes with mistake tracking
+// ═══════════════════════════════════════════════════════════════
+class QuizManager {
+
+  static _subjectSchema(subject){
+    const s=(subject||"").toLowerCase();
+    if(/hist/.test(s)) return "Mix of: [Source Utility] how useful is a source; [Interpretation] why two historians disagree; [Explain Why] 2-3 cause-effect sentences; [Judgment] how far do you agree + counter-argument.";
+    if(/math/.test(s)) return "Mix of (NO multiple choice): [Short Answer] 1-2 mark calculation; [Multi-step] 3-5 mark chain of working; [Proof] geometric or algebraic proof; [Data] reading/concluding from a described graph or table.";
+    if(/bio|chem|phys|scien/.test(s)) return "Mix of: [Multiple Choice] 1 factual recall question with 4 options A-D; [Structured] 2-3 sentence answer; [Calculation] numeric with formula+substitution+units; [Extended Response] 6-mark mini-essay or practical method.";
+    if(/comput|cs|tech/.test(s)) return "Mix of: [Multiple Choice/Completion] fill truth table or identify hardware; [Algorithm] write/complete pseudocode or Python; [Short Analysis] explain one ethical/social impact; [Logic] binary/hex conversion or flowchart trace.";
+    if(/eng/.test(s)) return "Mix of: [Extract Analysis] identify a device and explain its effect; [Comparison] compare two texts on a theme; [Evaluation] to what extent do you agree; [Creative/Transactional] opening of story/letter/speech with audience and purpose.";
+    if(/rel|rs|islam|relig/.test(s)) return "Mix of: [Definition] define the term X; [Multiple Choice] 1 recall question A-D; [Verse/Hadith] explain meaning and significance of a relevant concept.";
+    if(/arab/.test(s)) return "Mix of: [SPaG] identify and correct a grammatical/spelling mistake; [Comprehension] question on a short passage; [Literary] question about theme, mood, or meaning of a poem or story.";
+    return "Mix of: definition, short answer, explanation, and one applied/analytical question.";
+  }
+
+  static async generateQuestions(spaceName, notesText, subject){
+    var schema=QuizManager._subjectSchema(subject);
+    var context=notesText&&notesText.trim().length>40
+      ?"BASE EVERY QUESTION on these notes — do not invent questions outside this material:\n\n"+notesText.slice(0,8000)
+      :"Topic: "+spaceName;
+    var prompt=[
+      "Generate exactly 5 quiz questions for a student studying: "+spaceName+".",
+      "QUESTION FORMAT RULES FOR THIS SUBJECT: "+schema,
+      "SPECIFICITY RULES (critical):",
+      "- Every question MUST target ONE specific angle: economic, political, social, cultural, geographic, causal, military, or consequence.",
+      "- BAD (too vague): 'How did the triangular trade affect Africa?'",
+      "- GOOD (specific): 'How did the triangular trade affect West Africa economically?' or 'What political consequence did the slave trade have on African kingdoms?'",
+      "- Ask about a named person, date, place, cause, effect, process, or concept — never ask a broad topic-level question.",
+      "- Each of the 5 questions must target a DIFFERENT specific angle or sub-topic.",
+      "FORMATTING: numbered 1-5, one per line, questions only, under 35 words each.",
+      "Format: 1. [question]","",context
+    ].join("\n");
+    var raw=await AIManager.callGroq([{role:"user",content:prompt}],"llama-3.3-70b-versatile",400);
+    var questions=[];
+    raw.split("\n").forEach(function(line){
+      var m=line.match(/^\d+\.\s*(.+)/);
+      if(m) questions.push(m[1].trim());
+    });
+    return questions.slice(0,5);
+  }
+
+  static async gradeAnswers(spaceName, notesText, questions, answers){
+    var qa=questions.map(function(q,i){
+      return "Q"+(i+1)+": "+q+"\nA"+(i+1)+": "+(answers[i]||"(no answer)");
+    }).join("\n\n");
+    var context=notesText&&notesText.trim().length>40
+      ?"Reference notes (ground truth):\n"+notesText.slice(0,6000)+"\n\n":"";
+    var prompt=[
+      context+"Grade each answer for a student studying "+spaceName+":",
+      "",qa,"",
+      "If correct: write CORRECT. If wrong/incomplete: write MISTAKE: [1-2 sentences explaining the correct answer].",
+      "Format: Q1: CORRECT  or  Q1: MISTAKE: [explanation]"
+    ].join("\n");
+    return AIManager.callGroq([{role:"user",content:prompt}],"llama-3.3-70b-versatile",500);
+  }
+
+  static renderQuiz(spaceName, spaceId, uid, subject){
+    var modal=document.getElementById("quiz-modal");
+    if(!modal){
+      modal=document.createElement("div");
+      modal.id="quiz-modal";
+      // Close when clicking the backdrop
+      modal.addEventListener("click",function(e){if(e.target===modal) QuizManager.closeModal();});
+      document.body.appendChild(modal);
+    }
+    modal.className="modal-bg open";
+
+    /* Window-style modal: header with ✕ top-right, scrollable body, sticky footer */
+    modal.innerHTML=
+      '<div style="background:var(--bg2);border-radius:var(--radius-lg);border:1px solid var(--border);'+
+           'width:100%;max-width:640px;max-height:90vh;display:flex;flex-direction:column;overflow:hidden;">'+
+
+        /* ── Header ── */
+        '<div style="display:flex;align-items:center;justify-content:space-between;'+
+             'padding:14px 18px 12px;border-bottom:1px solid var(--border);flex-shrink:0;">'+
+          '<div>'+
+            '<h2 style="font-size:15px;font-weight:700;margin:0;">'+spaceName+' Quiz</h2>'+
+            '<p style="font-size:12px;color:var(--text2);margin:1px 0 0;">Test your knowledge of '+spaceName+'</p>'+
+          '</div>'+
+          '<button onclick="QuizManager.closeModal()" title="Close"'+
+            ' style="background:transparent;border:none;color:var(--text3);font-size:18px;cursor:pointer;'+
+                    'line-height:1;width:32px;height:32px;display:flex;align-items:center;justify-content:center;'+
+                    'border-radius:var(--radius-sm);transition:color .15s,background .15s;"'+
+            " onmouseover=\"this.style.color='#fff';this.style.background='var(--bg3)'\""+
+            " onmouseout=\"this.style.color='var(--text3)';this.style.background='transparent'\">✕</button>"+
+        '</div>'+
+
+        /* ── Scrollable question body ── */
+        '<div id="quiz-body" style="overflow-y:auto;flex:1;padding:18px 18px 8px;">'+
+          '<div style="display:flex;align-items:center;gap:10px;">'+
+            '<div class="spinner"></div><span style="color:var(--text2);">Generating questions…</span>'+
+          '</div>'+
+        '</div>'+
+
+        /* ── Sticky footer: buttons ── */
+        '<div style="display:flex;gap:10px;padding:12px 18px;border-top:1px solid var(--border);flex-shrink:0;">'+
+          '<button class="btn btn-ghost" onclick="QuizManager.closeModal()">Cancel</button>'+
+          '<button class="btn btn-primary" id="quiz-submit" style="display:none;flex:1;"'+
+            " onclick=\"QuizManager.submit('"+spaceName+"','"+spaceId+"','"+uid+"')\">Submit Answers</button>"+
+        '</div>'+
+      '</div>';
+
+    /* Generate questions then render: 1 question per row, full-width answer box below */
+    var _notesRaw=(function(){
+      try{var s=Store.getSession();if(!s)return "";
+        return Store.getNotes(s.id,spaceId).map(function(n){return n.analysis||"";}).join("\n\n").slice(0,10000);
+      }catch(e){return "";}}
+    )();
+    QuizManager._notesRaw=_notesRaw;
+    QuizManager.generateQuestions(spaceName,_notesRaw,subject).then(function(questions){
+      QuizManager._q = questions;
+      if(!questions.length){
+        document.getElementById("quiz-body").innerHTML=
+          '<p style="color:var(--red);">Could not generate questions. Please try again.</p>';
+        return;
+      }
+      document.getElementById("quiz-body").innerHTML =
+        questions.map(function(q,i){
+          var isLast = (i === questions.length-1);
+          return (
+            '<div style="margin-bottom:'+(isLast?'8':'20')+'px;'+
+                   (isLast?'':'padding-bottom:18px;border-bottom:1px solid var(--border);')+'">' +
+              /* Question badge + text — full width row */
+              '<div style="display:flex;gap:10px;align-items:flex-start;margin-bottom:10px;">'+
+                '<span style="background:var(--cyan-dim);color:var(--cyan);font-size:11px;font-weight:700;'+
+                       'padding:2px 8px;border-radius:20px;white-space:nowrap;margin-top:2px;">Q'+(i+1)+'</span>'+
+                '<p style="font-size:13.5px;font-weight:600;line-height:1.6;color:var(--text);margin:0;">'+
+                  q.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")+
+                '</p>'+
+              '</div>'+
+              /* Answer textarea — full width, below question */
+              '<textarea class="input" id="qa-'+i+'" rows="3"'+
+                ' placeholder="Your answer…"'+
+                ' style="width:100%;resize:vertical;"></textarea>'+
+            '</div>'
+          );
+        }).join("");
+      document.getElementById("quiz-submit").style.display = "";
+    }).catch(function(e){
+      document.getElementById("quiz-body").innerHTML='<p style="color:var(--red);">Error: '+e.message+'</p>';
+    });
+  }
+  static async submit(spaceName, spaceId, uid){
+    var questions=QuizManager._q||[];
+    var answers=questions.map(function(_,i){ var el=document.getElementById("qa-"+i); return el?el.value.trim():""; });
+    document.getElementById("quiz-body").innerHTML='<div style="display:flex;align-items:center;gap:10px;"><div class="spinner"></div><span style="color:var(--text2);">Grading…</span></div>';
+    document.getElementById("quiz-submit").style.display="none";
+    try{
+      var result=await QuizManager.gradeAnswers(spaceName,QuizManager._notesRaw||"",questions,answers);
+      var lines=result.split("\n");
+      var mistakeCount=0;
+      lines.forEach(function(line){
+        var m=line.match(/Q\d+:\s*MISTAKE:\s*(.+)/i);
+        if(m){ Store.addMistake(uid,spaceId,m[1].trim()); mistakeCount++; }
+      });
+      document.getElementById("quiz-body").innerHTML=
+        lines.map(function(line){
+          var isOk=/CORRECT/i.test(line)&&!/MISTAKE/i.test(line);
+          var isErr=/MISTAKE/i.test(line);
+          return '<p style="font-size:13px;color:'+(isOk?"var(--green)":isErr?"var(--red)":"var(--text2)")+';margin-bottom:6px;">'+
+            line.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")+'</p>';
+        }).join("")+
+        (mistakeCount?
+          '<p style="font-size:12px;color:var(--amber);margin-top:8px;">'+mistakeCount+' mistake(s) saved — your next notes for this space will address them.</p>':
+          '<p style="font-size:12px;color:var(--green);margin-top:8px;">Perfect score!</p>');
+      var btn=document.getElementById("quiz-submit");
+      btn.textContent="Close"; btn.style.display=""; btn.onclick=function(){QuizManager.closeModal();};
+    }catch(e){
+      document.getElementById("quiz-body").innerHTML='<p style="color:var(--red);">Error: '+e.message+'</p>';
+    }
+  }
+
+  static closeModal(){
+    var m=document.getElementById("quiz-modal");
+    if(m) m.className="modal-bg";
+  }
+
+  // Standalone quiz screen — pick a space, then quiz
+  static renderScreen(el){
+    var session=Store.getSession();
+    if(!session){ el.innerHTML='<p style="color:var(--red);">Not logged in.</p>'; return; }
+    var spaces=Store.getSpaces(session.id);
+    // Store globally so event listeners can access without closure issues
+    QuizManager._spaces=spaces;
+    QuizManager._uid=session.id;
+
+    el.innerHTML=
+      '<button class="back-link" onclick="Router.go(\'dashboard\')">← Dashboard</button>'+
+      '<h1 class="page-title">Quiz</h1>'+
+      '<p style="font-size:13px;color:var(--text2);margin-bottom:20px;">'+
+        'Pick a space to test yourself. Your mistakes are saved and improve future study notes.</p>'+
+      '<div id="quiz-space-grid"></div>';
+
+    var grid=document.getElementById("quiz-space-grid");
+    if(!grid){ return; }
+
+    if(!spaces||!spaces.length){
+      grid.innerHTML='<div style="border:2px dashed var(--border);border-radius:var(--radius);'+
+        'padding:32px;text-align:center;"><p style="color:var(--text3);">'+
+        'No spaces yet. Create a space from the sidebar first.</p></div>';
+      return;
+    }
+
+    grid.style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;";
+    spaces.forEach(function(sp,i){
+      var mc=Store.getMistakes(session.id,sp.id).length;
+      var card=document.createElement("div");
+      card.className="space-card";
+      card.style="border-left:3px solid "+sp.color+";cursor:pointer;";
+      card.setAttribute("data-idx",i);
+      card.innerHTML=
+        '<div style="padding:12px 14px;">'+
+          '<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">'+
+            '<span style="font-size:20px;color:'+sp.color+'">'+sp.icon+'</span>'+
+            '<span style="font-weight:700;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+sp.name+'</span>'+
+          '</div>'+
+          '<div style="font-size:10px;color:var(--text3);">'+sp.subject+
+            (mc?'<div style="color:var(--amber);margin-top:2px;">'+mc+' mistake(s)</div>':'')+
+          '</div>'+
+        '</div>';
+      card.onclick=function(){
+        var idx=parseInt(this.getAttribute("data-idx"));
+        var sp=QuizManager._spaces[idx];
+        QuizManager.renderQuiz(sp.name,sp.id,QuizManager._uid,sp.subject||"");
+      };
+      grid.appendChild(card);
+    });
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// CLASS: CalendarManager — monthly calendar with exam dates
+// ═══════════════════════════════════════════════════════════════
+class CalendarManager {
+  // State: which month/year is currently displayed
+  static _year  = new Date().getFullYear();
+  static _month = new Date().getMonth(); // 0-based
+
+  // Render the calendar widget into a container element
+  static renderWidget(container){
+    if(!container) return;
+    const session = Store.getSession();
+    if(!session) return;
+
+    const uid    = session.id;
+    const today  = new Date();
+    const year   = CalendarManager._year;
+    const month  = CalendarManager._month;
+    const exams  = Store.getExams(uid);
+
+    // Month name
+    const monthName = new Date(year, month, 1).toLocaleString("en-GB",{month:"long",year:"numeric"});
+
+    // First day of month (0=Sun … 6=Sat) and total days
+    const firstDow   = new Date(year, month, 1).getDay(); // 0=Sun
+    const daysInMonth= new Date(year, month+1, 0).getDate();
+
+    // Build day-of-week headers (Mon first)
+    const DOWS = ["Mo","Tu","We","Th","Fr","Sa","Su"];
+    // Offset: Mon=0 grid column. JS getDay() is Sun=0. Convert: Mon=1→0, Tue=2→1 … Sun=0→6
+    const startOffset = (firstDow === 0) ? 6 : firstDow - 1;
+
+    // Build grid cells
+    let cells = "";
+    // Empty cells before day 1
+    for(let i=0;i<startOffset;i++) cells += '<div class="cal-day empty"></div>';
+    // Day cells
+    for(let d=1;d<=daysInMonth;d++){
+      const dateStr  = `${year}-${String(month+1).padStart(2,"0")}-${String(d).padStart(2,"0")}`;
+      const isToday  = (d===today.getDate() && month===today.getMonth() && year===today.getFullYear());
+      const hasExam  = exams.some(e=>e.date===dateStr);
+      const cls      = ["cal-day", isToday?"today":"", hasExam?"has-exam":""].filter(Boolean).join(" ");
+      // Tooltip with exam subject on hover
+      const examSubjects = exams.filter(e=>e.date===dateStr).map(e=>e.subject).join(", ");
+      const title = hasExam ? ` title="${examSubjects}"` : "";
+      cells += `<div class="${cls}"${title} onclick="CalendarManager.openExamModal('${dateStr}',this)">${d}</div>`;
+    }
+
+    // Upcoming exams list
+    const futureExams = exams
+      .filter(e=>e.date >= today.toISOString().slice(0,10))
+      .sort((a,b)=>a.date.localeCompare(b.date))
+      .slice(0,6);
+
+    const examListHtml = futureExams.length
+      ? '<div class="exam-list">' +
+          futureExams.map(e=>`
+            <span class="exam-chip" title="${e.date}">
+              📅 ${e.subject} · ${CalendarManager._fmtDate(e.date)}
+              <button onclick="CalendarManager.removeExam('${uid}','${e.id}')" title="Remove">✕</button>
+            </span>`).join("") +
+        '</div>'
+      : '<p style="font-size:11px;color:var(--text3);margin-top:6px;">No upcoming exams added yet.</p>';
+
+    container.innerHTML = `
+      <div class="cal-widget">
+        <div class="cal-header">
+          <span class="cal-title">📅 ${monthName}</span>
+          <div style="display:flex;gap:6px;">
+            <button class="cal-nav-btn" onclick="CalendarManager.prev()">‹</button>
+            <button class="cal-nav-btn" onclick="CalendarManager.next()">›</button>
+          </div>
+        </div>
+        <div class="cal-grid">
+          ${DOWS.map(d=>`<div class="cal-dow">${d}</div>`).join("")}
+          ${cells}
+        </div>
+        ${examListHtml}
+        <button class="cal-add-btn" onclick="CalendarManager.openExamModal(null,null)">＋ Add exam date</button>
+      </div>`;
+  }
+
+  // Navigate
+  static prev(){
+    CalendarManager._month--;
+    if(CalendarManager._month < 0){ CalendarManager._month=11; CalendarManager._year--; }
+    CalendarManager.renderWidget(document.getElementById("cal-container"));
+  }
+  static next(){
+    CalendarManager._month++;
+    if(CalendarManager._month > 11){ CalendarManager._month=0; CalendarManager._year++; }
+    CalendarManager.renderWidget(document.getElementById("cal-container"));
+  }
+
+  // Remove an exam and re-render
+  static removeExam(uid, examId){
+    Store.removeExam(uid, examId);
+    CalendarManager.renderWidget(document.getElementById("cal-container"));
+    Toast.success("Exam removed.");
+  }
+
+  // Format YYYY-MM-DD → "12 Jan 2025"
+  static _fmtDate(dateStr){
+    const d = new Date(dateStr+"T12:00:00");
+    return d.toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"numeric"});
+  }
+
+  // Open a small modal to add an exam on a specific date
+  static openExamModal(dateStr, _btn){
+    const session = Store.getSession();
+    if(!session) return;
+    const profile = Store.getProfile(session.id)||{};
+    const subjects = (profile.subjects||[]).map(s=>s.name);
+
+    // Build the modal if it doesn't exist
+    let modal = document.getElementById("exam-modal");
+    if(!modal){
+      modal = document.createElement("div");
+      modal.id = "exam-modal";
+      modal.className = "modal-bg";
+      modal.addEventListener("click", function(e){ if(e.target===modal) CalendarManager.closeExamModal(); });
+      document.body.appendChild(modal);
+    }
+
+    const today = new Date().toISOString().slice(0,10);
+    modal.innerHTML = `
+      <div class="modal fade-in" style="max-width:360px;">
+        <h2 class="modal-title">Add Exam Date</h2>
+        <div class="input-group">
+          <label class="input-label">Subject</label>
+          <select class="input select" id="exam-subj">
+            <option value="">Select subject…</option>
+            ${subjects.map(s=>`<option value="${s}">${s}</option>`).join("")}
+            <option value="Other">Other</option>
+          </select>
+        </div>
+        <div class="input-group" id="exam-other-group" style="display:none;">
+          <label class="input-label">Subject name</label>
+          <input class="input" id="exam-other-text" placeholder="Enter subject…"/>
+        </div>
+        <div class="input-group">
+          <label class="input-label">Exam Date</label>
+          <input class="input" id="exam-date" type="date" value="${dateStr||today}" min="${today}"/>
+        </div>
+        <div style="display:flex;gap:10px;">
+          <button class="btn btn-ghost" onclick="CalendarManager.closeExamModal()">Cancel</button>
+          <button class="btn btn-primary" style="flex:1;" onclick="CalendarManager.saveExam('${session.id}')">Add Exam</button>
+        </div>
+      </div>`;
+    modal.classList.add("open");
+
+    // Show text field when "Other" selected
+    document.getElementById("exam-subj").addEventListener("change",function(){
+      document.getElementById("exam-other-group").style.display = this.value==="Other"?"block":"none";
+    });
+  }
+
+  static closeExamModal(){
+    const m = document.getElementById("exam-modal");
+    if(m) m.classList.remove("open");
+  }
+
+  static saveExam(uid){
+    let subject = (document.getElementById("exam-subj")||{}).value||"";
+    if(subject === "Other") subject = (document.getElementById("exam-other-text")||{}).value.trim();
+    const date  = (document.getElementById("exam-date")||{}).value||"";
+    if(!subject){ Toast.error("Choose a subject."); return; }
+    if(!date)   { Toast.error("Choose a date."); return; }
+    Store.addExam(uid, {id:"ex"+Date.now(), subject, date});
+    CalendarManager.closeExamModal();
+    CalendarManager.renderWidget(document.getElementById("cal-container"));
+    Toast.success("Exam added: "+subject+" on "+CalendarManager._fmtDate(date));
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+class StudyPlanManager {
+  static openScreen(){ Store.set("plan_text",""); Router.go("studyplan"); }
+
+  static async generate(spaces){
+    if(!spaces.length) return "No spaces yet. Create some first.";
+    var names=spaces.map(function(s){return s.name;}).join(", ");
+    var prompt=[
+      "Generate a weekly study plan for these study spaces: "+names+".",
+      "Rules:",
+      "- One or two spaces per day (Mon-Sun)",
+      "- Suggest a Pomodoro format e.g. 25/5 x 4 or 50/10 x 3",
+      "- No times of day. No filler. Just the plan.",
+      "Format exactly:",
+      "**Monday**: Revise [Space] - 50/10 x 3",
+      "**Tuesday**: Revise [Space] - 25/5 x 4",
+      "...through Sunday."
+    ].join("\n");
+    return AIManager.callGroq([{role:"user",content:prompt}],"llama-3.3-70b-versatile",512);
+  }
+
+  static _parsePlan(plan, spaces){
+    var days=[];
+    plan.split("\n").forEach(function(line){
+      // Match: **Monday**: [Revise] SpaceName [-—] pomodoro
+      // Also handle plain: Monday: SpaceName - pomodoro
+      var m=line.match(/\*{0,2}([A-Za-z]+day)\*{0,2}[:\s]+(?:[Rr]evise\s+)?([^—\-\n:]+?)\s*[-—]\s*(.+)/i);
+      if(m&&m[1]&&m[2]&&m[3]){
+        var name=m[2].trim().replace(/\*+/g,"");
+        if(!name) return;
+        var sp=spaces.find(function(s){return s.name.toLowerCase()===name.toLowerCase();})||null;
+        // Fuzzy match - check if any space name is contained in the line
+        if(!sp) sp=spaces.find(function(s){
+          return line.toLowerCase().indexOf(s.name.toLowerCase())!==-1;
+        })||null;
+        if(sp) name=sp.name; // use exact space name
+        days.push({day:m[1].trim(),spaceName:name,pomodoro:m[3].trim().replace(/\*+/g,""),space:sp});
+      }
+    });
+    return days;
+  }
+
+  static async render(el){
+    var session=Store.getSession();
+    var spaces=Store.getSpaces(session.id);
+    var plan=Store.get("plan_text","");
+
+    el.innerHTML=
+      '<button class="back-link" onclick="Router.go(\'dashboard\')">← Dashboard</button>'+
+      '<h1 class="page-title">Weekly Study Plan</h1>'+
+      '<div id="plan-area" style="display:flex;align-items:center;gap:10px;padding:20px;'+
+      'background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);">'+
+      '<div class="spinner"></div><span style="color:var(--text2);">Building your study plan…</span>'+
+      '</div>';
+
+    if(!plan){
+      try{
+        plan=await StudyPlanManager.generate(spaces);
+        Store.set("plan_text",plan);
+      }catch(e){
+        document.getElementById("plan-area").innerHTML=
+          '<p style="color:var(--red);">Error: '+e.message+'</p>';
+        return;
+      }
+    }
+
+    // Simple plain-text render — bold day names, no card parsing needed
+    var html=plan
+      .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")
+      .replace(/\*\*([^*]+)\*\*/g,"<strong>$1</strong>")
+      .replace(/\n/g,"<br/>");
+    document.getElementById("plan-area").innerHTML=
+      '<div class="analysis-box" style="width:100%;">'+html+'</div>';
+
+    var actions=document.createElement("div");
+    actions.style="display:flex;flex-wrap:wrap;gap:10px;margin-top:14px;";
+    actions.innerHTML=
+      '<button class="btn btn-ghost" onclick="Store.set(\'plan_text\',' +
+      "'" + '\');StudyPlanManager.render(document.getElementById(\'screen\'))">Regenerate</button>'+
+      '<button class="btn btn-ghost" onclick="StudyPlanManager.download()">Download plan</button>'+
+      '<button class="btn btn-primary" onclick="Router.go(\'quiz\')">✏️ Take a Quiz</button>';
+    el.appendChild(actions);
+  }
+
+  static download(){
+    var a=document.createElement("a");
+    a.href="data:text/plain;charset=utf-8,"+encodeURIComponent(Store.get("plan_text",""));
+    a.download="study_plan.txt"; a.click();
+  }
+}
+
+
+// ═══════════════════════════════════════════════════════════════
+// CLASS: App — initialisation
+// ═══════════════════════════════════════════════════════════════
+class App {
+  static init(){
+    // Kick off live model discovery immediately — runs in the background,
+    // replaces _MODEL_CHAIN before any real API call is made.
+    AIManager.refreshAvailableModels();
+
+    // Restore notes from store on load
+    const session=Store.getSession();
+    if(session){
+      const spaces=Store.getSpaces(session.id);
+      spaces.forEach(sp=>{
+        Store.getNotes(session.id,sp.id).forEach(n=>{ SpaceManager._noteStore[n.id]=n; });
+      });
+      const profile=Store.getProfile(session.id);
+      Router.go(profile?"dashboard":"onboard");
+    } else {
+      Router.go("welcome");
+    }
+  }
+}
+
+// ── Boot ───────────────────────────────────────────────────────
+document.addEventListener("DOMContentLoaded",()=>App.init());
+</script>
+
+</body>
+</html>
