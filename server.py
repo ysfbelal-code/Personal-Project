@@ -58,7 +58,7 @@ class ElixirHandler(http.server.BaseHTTPRequestHandler):
             self.send_error(400, "Invalid JSON")
             return
 
-        api_key = "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"
+        api_key = payload.pop("key", "")
         if not api_key:
             self._json_error(400, "No API key provided")
             return
