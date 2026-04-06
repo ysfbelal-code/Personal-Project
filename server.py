@@ -64,29 +64,38 @@ class ElixirHandler(http.server.BaseHTTPRequestHandler):
             return
 
         if route == "/models":
-            print(f"  [models] Using API key: {api_key[:20]}...")
-            print(f"  [models] Requesting: https://api.groq.com/openai/v1/models")
-            req = urllib.request.Request(
-                "https://api.groq.com/openai/v1/models",
-                headers={
-                    "Authorization": f"Bearer {api_key}",
-                    "User-Agent": "Mozilla/5.0",
-                },
-                method="GET",
-            )
-        else:
-            req = urllib.request.Request(
-                GROQ_URL,
-                data=json.dumps(payload).encode(),
-                headers={
-                    "Authorization":   f"Bearer {api_key}",
-                    "Content-Type":    "application/json",
-                    "User-Agent":      "Mozilla/5.0",
-                    "Accept":          "application/json",
-                    "Accept-Language": "en-US,en;q=0.9",
-                },
-                method="POST",
-            )
+            print(f"  [models] Returning hardcoded models list (Groq API endpoint not used)")
+            models = {
+                "object": "list",
+                "data": [
+                    {"id": "mixtral-8x7b-32768", "object": "model", "owned_by": "groq"},
+                    {"id": "llama-3.1-70b-versatile", "object": "model", "owned_by": "groq"},
+                    {"id": "llama-3.1-8b-instant", "object": "model", "owned_by": "groq"},
+                    {"id": "llama-3.2-11b-vision-preview", "object": "model", "owned_by": "groq"},
+                    {"id": "llama-3.2-1b-preview", "object": "model", "owned_by": "groq"},
+                ]
+            }
+            body = json.dumps(models).encode()
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Access-Control-Allow-Origin", "*")
+            self.end_headers()
+            self.wfile.write(body)
+            return
+
+        # For /groq route: send chat completion request to Groq
+        req = urllib.request.Request(
+            GROQ_URL,
+            data=json.dumps(payload).encode(),
+            headers={
+                "Authorization":   f"Bearer {api_key}",
+                "Content-Type":    "application/json",
+                "User-Agent":      "Mozilla/5.0",
+                "Accept":          "application/json",
+                "Accept-Language": "en-US,en;q=0.9",
+            },
+            method="POST",
+        )
 
         MAX_RETRIES = 3
         last_err = None
@@ -104,23 +113,7 @@ class ElixirHandler(http.server.BaseHTTPRequestHandler):
             except urllib.error.HTTPError as e:
                 body = e.read()
                 print(f"  [groq] HTTP Error {e.code}: {body[:200]}")
-                
-                # 405 error from /models endpoint? Return hardcoded Groq models as fallback
-                if e.code == 405 and route == "/models":
-                    print(f"  [models] /models endpoint returned 405, using fallback model list")
-                    fallback = {
-                        "object": "list",
-                        "data": [
-                            {"id": "mixtral-8x7b-32768", "object": "model", "owned_by": "groq"},
-                            {"id": "llama-3.1-70b-versatile", "object": "model", "owned_by": "groq"},
-                            {"id": "llama-3.1-8b-instant", "object": "model", "owned_by": "groq"},
-                            {"id": "llama-3.2-11b-vision-preview", "object": "model", "owned_by": "groq"},
-                            {"id": "llama-3.2-1b-preview", "object": "model", "owned_by": "groq"},
-                        ]
-                    }
-                    body = json.dumps(fallback).encode()
-                
-                self.send_response(200)
+                self.send_response(e.code)
                 self.send_header("Content-Type", "application/json")
                 self.send_header("Access-Control-Allow-Origin", "*")
                 self.end_headers()
