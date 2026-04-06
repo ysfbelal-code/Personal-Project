@@ -7,7 +7,7 @@ import os
 
 PORT = 8080
 GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
-HTML_FILE = os.path.join(os.path.dirname(__file__), "elixir.html")
+HTML_FILE = os.path.join(os.path.dirname(__file__), "index.html")
 
 
 class ElixirHandler(http.server.BaseHTTPRequestHandler):
@@ -64,13 +64,13 @@ class ElixirHandler(http.server.BaseHTTPRequestHandler):
             return
 
         if route == "/models":
+            print(f"  [models] Using API key: {api_key[:20]}...")
+            print(f"  [models] Requesting: https://api.groq.com/openai/v1/models")
             req = urllib.request.Request(
                 "https://api.groq.com/openai/v1/models",
                 headers={
                     "Authorization": f"Bearer {api_key}",
-                    "Content-Type":  "application/json",
-                    "User-Agent":    "Mozilla/5.0",
-                    "Accept":        "application/json",
+                    "User-Agent": "Mozilla/5.0",
                 },
                 method="GET",
             )
@@ -94,6 +94,7 @@ class ElixirHandler(http.server.BaseHTTPRequestHandler):
             try:
                 with urllib.request.urlopen(req, timeout=60) as resp:
                     body = resp.read()
+                    print(f"  [groq] Success: {resp.status}")
                 self.send_response(200)
                 self.send_header("Content-Type", "application/json")
                 self.send_header("Access-Control-Allow-Origin", "*")
@@ -102,7 +103,24 @@ class ElixirHandler(http.server.BaseHTTPRequestHandler):
                 return
             except urllib.error.HTTPError as e:
                 body = e.read()
-                self.send_response(e.code)
+                print(f"  [groq] HTTP Error {e.code}: {body[:200]}")
+                
+                # 405 error from /models endpoint? Return hardcoded Groq models as fallback
+                if e.code == 405 and route == "/models":
+                    print(f"  [models] /models endpoint returned 405, using fallback model list")
+                    fallback = {
+                        "object": "list",
+                        "data": [
+                            {"id": "mixtral-8x7b-32768", "object": "model", "owned_by": "groq"},
+                            {"id": "llama-3.1-70b-versatile", "object": "model", "owned_by": "groq"},
+                            {"id": "llama-3.1-8b-instant", "object": "model", "owned_by": "groq"},
+                            {"id": "llama-3.2-11b-vision-preview", "object": "model", "owned_by": "groq"},
+                            {"id": "llama-3.2-1b-preview", "object": "model", "owned_by": "groq"},
+                        ]
+                    }
+                    body = json.dumps(fallback).encode()
+                
+                self.send_response(200)
                 self.send_header("Content-Type", "application/json")
                 self.send_header("Access-Control-Allow-Origin", "*")
                 self.end_headers()
@@ -110,6 +128,7 @@ class ElixirHandler(http.server.BaseHTTPRequestHandler):
                 return
             except urllib.error.URLError as e:
                 last_err = e
+                print(f"  [groq] URL Error (attempt {attempt+1}): {e.reason}")
                 if attempt < MAX_RETRIES - 1:
                     import time; time.sleep(1.5 * (attempt + 1))
 
