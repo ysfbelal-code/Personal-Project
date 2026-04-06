@@ -26,7 +26,8 @@ class ElixirHandler(http.server.BaseHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(data)
         except FileNotFoundError:
-            self.send_error(404, "elixir.html not found next to server.py")
+            print(f"  [GET] ERROR: {HTML_FILE} not found")
+            self.send_error(404, f"File not found: {HTML_FILE}")
 
     # ── OPTIONS: CORS preflight ──────────────────────────────────────────────
     def do_OPTIONS(self):
@@ -41,7 +42,10 @@ class ElixirHandler(http.server.BaseHTTPRequestHandler):
         parsed = urllib.parse.urlparse(self.path)
         route  = parsed.path
 
+        print(f"  [POST] Route: {route}")
+
         if route not in ("/groq", "/models", "/extract"):
+            print(f"  [POST] Unknown route: {route}")
             self.send_error(404)
             return
 
@@ -51,20 +55,34 @@ class ElixirHandler(http.server.BaseHTTPRequestHandler):
 
         # Groq routes — require JSON body with API key
         length = int(self.headers.get("Content-Length", 0))
+        print(f"  [POST] Content-Length: {length}")
+        
+        if length == 0:
+            print(f"  [POST] ERROR: No body received")
+            self._json_error(400, "Empty request body")
+            return
+            
         raw    = self.rfile.read(length)
+        
         try:
             payload = json.loads(raw)
-        except json.JSONDecodeError:
-            self.send_error(400, "Invalid JSON")
+            print(f"  [POST] Payload keys: {list(payload.keys())}")
+        except json.JSONDecodeError as e:
+            print(f"  [POST] ERROR: Invalid JSON - {e}")
+            self._json_error(400, f"Invalid JSON: {e}")
             return
 
         api_key = payload.pop("key", "")
         if not api_key:
+            print(f"  [POST] ERROR: No API key provided")
             self._json_error(400, "No API key provided")
             return
+        
+        print(f"  [POST] API key found: {api_key[:20]}...")
 
+        # MODELS ENDPOINT — Return hardcoded list, never call Groq
         if route == "/models":
-            print(f"  [models] Returning hardcoded models list (Groq API endpoint not used)")
+            print(f"  [models] Returning hardcoded models list")
             models = {
                 "object": "list",
                 "data": [
@@ -76,6 +94,7 @@ class ElixirHandler(http.server.BaseHTTPRequestHandler):
                 ]
             }
             body = json.dumps(models).encode()
+            print(f"  [models] Sending {len(models['data'])} models")
             self.send_response(200)
             self.send_header("Content-Type", "application/json")
             self.send_header("Access-Control-Allow-Origin", "*")
@@ -83,50 +102,95 @@ class ElixirHandler(http.server.BaseHTTPRequestHandler):
             self.wfile.write(body)
             return
 
-        # For /groq route: send chat completion request to Groq
+        # GROQ CHAT ENDPOINT — Validate and forward to Groq API
+        print(f"  [groq] Processing chat request")
+        
+        required_keys = {"model", "messages"}
+        missing_keys = required_keys - set(payload.keys())
+        if missing_keys:
+            print(f"  [groq] ERROR: Missing keys: {missing_keys}")
+            self._json_error(400, f"Missing required fields: {missing_keys}")
+            return
+        
+        model = payload.get("model", "")
+        messages = payload.get("messages", [])
+        max_tokens = payload.get("max_tokens", 2048)
+        
+        print(f"  [groq] Model: {model}, Messages: {len(messages)}, Max tokens: {max_tokens}")
+        
+        # Build clean payload for Groq
+        groq_payload = {
+            "model": model,
+            "messages": messages,
+            "max_tokens": max_tokens,
+        }
+        
+        # Optional fields
+        for opt_key in ["temperature", "top_p", "frequency_penalty", "presence_penalty"]:
+            if opt_key in payload:
+                groq_payload[opt_key] = payload[opt_key]
+        
+        print(f"  [groq] Sending to: {GROQ_URL}")
+        print(f"  [groq] Headers: Authorization, Content-Type: application/json")
+        print(f"  [groq] Payload size: {len(json.dumps(groq_payload))} bytes")
+        
         req = urllib.request.Request(
             GROQ_URL,
-            data=json.dumps(payload).encode(),
+            data=json.dumps(groq_payload).encode("utf-8"),
             headers={
                 "Authorization":   f"Bearer {api_key}",
                 "Content-Type":    "application/json",
                 "User-Agent":      "Mozilla/5.0",
                 "Accept":          "application/json",
-                "Accept-Language": "en-US,en;q=0.9",
             },
             method="POST",
         )
 
         MAX_RETRIES = 3
         last_err = None
+        
         for attempt in range(MAX_RETRIES):
             try:
+                print(f"  [groq] Attempt {attempt+1}/{MAX_RETRIES}...")
                 with urllib.request.urlopen(req, timeout=60) as resp:
                     body = resp.read()
-                    print(f"  [groq] Success: {resp.status}")
+                    print(f"  [groq] ✓ Success ({resp.status}): {len(body)} bytes")
+                    
                 self.send_response(200)
                 self.send_header("Content-Type", "application/json")
                 self.send_header("Access-Control-Allow-Origin", "*")
                 self.end_headers()
                 self.wfile.write(body)
                 return
+                
             except urllib.error.HTTPError as e:
-                body = e.read()
-                print(f"  [groq] HTTP Error {e.code}: {body[:200]}")
+                error_body = e.read()
+                print(f"  [groq] ✗ HTTP {e.code}: {error_body[:300].decode('utf-8', errors='replace')}")
+                
+                # Forward Groq's error to client
                 self.send_response(e.code)
                 self.send_header("Content-Type", "application/json")
                 self.send_header("Access-Control-Allow-Origin", "*")
                 self.end_headers()
-                self.wfile.write(body)
+                self.wfile.write(error_body)
                 return
+                
             except urllib.error.URLError as e:
                 last_err = e
-                print(f"  [groq] URL Error (attempt {attempt+1}): {e.reason}")
+                print(f"  [groq] ✗ URLError (attempt {attempt+1}): {e.reason}")
                 if attempt < MAX_RETRIES - 1:
-                    import time; time.sleep(1.5 * (attempt + 1))
+                    import time
+                    wait_time = 1.5 * (attempt + 1)
+                    print(f"  [groq] Waiting {wait_time}s before retry...")
+                    time.sleep(wait_time)
+            except Exception as e:
+                print(f"  [groq] ✗ Unexpected error: {type(e).__name__}: {e}")
+                self._json_error(500, f"Server error: {type(e).__name__}")
+                return
 
+        print(f"  [groq] ✗ Failed after {MAX_RETRIES} attempts")
         self._json_error(502,
-            f"Could not reach Groq after {MAX_RETRIES} attempts: {last_err.reason}")
+            f"Could not reach Groq after {MAX_RETRIES} attempts: {last_err.reason if last_err else 'Unknown error'}")
 
     # ────────────────────────────────────────────────────────────────────────
     # /extract  — receive raw file bytes, return extracted text as JSON
