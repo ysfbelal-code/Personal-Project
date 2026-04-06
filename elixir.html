@@ -1150,13 +1150,25 @@ CORRECT style — write the actual facts, events, people, dates, and significanc
       userMsg =
 `The file below contains only headings and limited text because the main content is inside images that cannot be extracted.
 
-Your task: write complete, detailed study notes for each heading/topic listed.
+Your task: write complete, exam-ready study notes for EACH heading/topic listed.
 Use accurate knowledge appropriate for ${grade} ${curriculum}.
 
 For EACH topic you find, write:
 1. A ## heading with the topic name
-2. At least 4-6 specific bullet points of real facts, dates, names, and causes
-3. Any key terms in **bold** — use **term** syntax, never [BOLD: term]
+2. At least 8-10 specific bullet points — real facts, dates, names, causes, and consequences. Nothing vague.
+3. ### sub-headings for major sub-topics where relevant
+4. Key terms in **bold** — use **term** syntax only, never [BOLD: term]
+5. A | Table | like | this | for any comparisons or classifications
+
+At the end of all topics, add:
+## Key Terms
+Define every bolded term above in one precise sentence each.
+
+## Summary
+8-10 bullet points covering the most important ideas across all topics.
+
+## Exam Practice
+5 exam-style questions appropriate for ${grade} ${curriculum}, each followed by a full model answer.
 
 Do NOT write vague or circular sentences. Write the actual facts as a teacher would.
 
@@ -1166,13 +1178,15 @@ ${cleanedTrunc}`;
     } else {
       // File has substantial text — extract and organise it.
       userMsg =
-`Write complete study notes from the material below.
+`Write complete, exam-ready study notes from the material below.
 
-STEP 1 — Identify every distinct topic.
-STEP 2 — Write one ## section per topic, named after that topic.
-STEP 3 — Under each heading, write all the facts, definitions, dates, causes, consequences, and examples from the material. Nothing skipped.
-STEP 4 — ## Key Terms: define every important term in **bold** (use **term** syntax only).
-STEP 5 — ## Summary: 6-10 bullet points covering all major ideas.
+STEP 1 — Identify every distinct topic and sub-topic.
+STEP 2 — Write one ## section per topic, with ### sub-sections for sub-topics.
+STEP 3 — Under each heading, write ALL facts, definitions, dates, names, causes, consequences, and examples from the material — nothing skipped. Minimum 8 bullet points per topic.
+STEP 4 — ## Key Terms: define every important term in **bold** (use **term** syntax only) — at least 10 terms.
+STEP 5 — ## Connections: explain how the topics relate to each other (cause-effect, chronology, themes) in 4-6 bullet points.
+STEP 6 — ## Summary: 8-12 bullet points covering all major ideas.
+STEP 7 — ## Exam Practice: 5 exam-style questions with full model answers appropriate for the subject and level.
 
 --- MATERIAL ---
 
@@ -1183,6 +1197,78 @@ ${cleanedTrunc}`;
       {role:"system", content:sysMsg},
       {role:"user",   content:userMsg}
     ], null, 6000);
+  }
+
+  // ── analyzeMultipleImages ─────────────────────────────────────────────────
+  // Called when a .pptx has embedded picture shapes (slides = images).
+  // All images are sent to the vision model in one call so it understands
+  // the narrative arc of the whole presentation, not isolated screenshots.
+  // Capped at 10 images per call; the most content-rich are kept if more exist.
+  static async analyzeMultipleImages(images, profile) {
+    const subs       = this._subStr(profile);
+    const grade      = profile.grade      || "secondary";
+    const curriculum = profile.curriculum || "curriculum";
+
+    const sysMsg =
+`You are Elixir AI, expert tutor for ${grade} ${curriculum} students. Subjects: ${subs}.
+NEVER use LaTeX dollar signs ($) or \\[ \\] for math — use plain text (^ for powers, _ for subscripts).
+
+Write notes exactly like a top student's hand-written revision notes — factual and direct.
+FORMATTING:
+- Bold key terms: **term** syntax ONLY. FORBIDDEN: [BOLD: term] or [KEY TERM: term].
+- ## for main topics, ### for sub-topics.
+- Bullet points for facts.
+- Tables using | Col | Col | for comparisons.
+- No LaTeX. Plain text maths only.
+
+WRITING STYLE — most important rule:
+FORBIDDEN openers: "This slide", "The slide shows", "This image", "In this picture", "This presentation".
+CORRECT: write the actual content — facts, dates, names, causes, consequences — exactly as a teacher would.
+  BAD:  "This slide shows trade routes in Mali."
+  GOOD: "Mali controlled trans-Saharan trade routes carrying gold northward and salt southward. Mansa Musa's 1324 pilgrimage flooded Cairo with so much gold it caused decade-long inflation."`;
+
+    // Cap at 10 — enough for any reasonable slide deck
+    const cap     = 10;
+    const sample  = images.slice(0, cap);
+    const imgNote = images.length > cap
+      ? ` (showing first ${cap} of ${images.length} images)`
+      : ` (${images.length} slide image${images.length > 1 ? "s" : ""})`;
+
+    // Build content array: all images first, instruction last
+    const content = sample.map(img => ({
+      type: "image_url",
+      image_url: { url: `data:${img.mime};base64,${img.base64}` }
+    }));
+
+    content.push({ type: "text", text:
+`These are slides from an educational presentation${imgNote}.
+Write complete, exam-ready study notes covering ALL content visible across every slide.
+
+For each topic or slide:
+1. ## heading with the topic name
+2. At least 8-10 specific bullet points — facts, dates, names, causes, and consequences
+3. ### sub-headings for sub-topics where relevant
+4. Key terms in **bold** — use **term** syntax only
+5. | Tables | like | this | for any comparisons
+
+Then at the end add these three sections:
+## Key Terms
+Define every bolded term used above in one precise sentence.
+
+## Summary
+8-10 bullet points covering the most important ideas across all slides.
+
+## Exam Practice
+5 exam-style questions appropriate for ${grade} ${curriculum}, each with a full model answer.` });
+
+    return this.callGroq(
+      [
+        { role: "system", content: sysMsg },
+        { role: "user",   content }
+      ],
+      "meta-llama/llama-4-scout-17b-16e-instruct",
+      8000
+    );
   }
 }
 
@@ -1582,6 +1668,25 @@ class SpaceManager {
               return;
             }
             text = (data.text || "").trim();
+
+            // ── PPTX vision path: embedded slide images found ──────────────
+            // When the server returns images (pptx only), the slide content
+            // lives inside those pictures — send them all to the vision model
+            // instead of relying on sparse extracted text.
+            const slideImages = data.images || [];
+            if(slideImages.length > 0){
+              setP(55, `Analysing ${slideImages.length} slide image${slideImages.length > 1 ? "s" : ""} with AI…`);
+              const analysis = await AIManager.analyzeMultipleImages(slideImages, profile);
+              setP(90, "Saving…");
+              note = {
+                id: "n" + Date.now(),
+                title: file.name.replace(/\.[^.]+$/, ""),
+                isImage: false, thumb: null,
+                analysis, filename: file.name,
+                created: new Date().toLocaleDateString("en-GB",{day:"2-digit",month:"short",year:"numeric"})
+              };
+              // note is set — fall through to the shared save block below
+            }
           } else {
             console.warn("Extract endpoint returned", resp.status);
           }
@@ -1589,27 +1694,28 @@ class SpaceManager {
           console.warn("Extract server unavailable:", serverErr.message);
         }
 
-        /* ── Guard: no text extracted but server didn't error ── */
-        if(!text || text.length < 20){
-          if(prog) prog.innerHTML =
-            '<p style="color:var(--amber);padding:8px 0;">⚠ <strong>No text found in ' +
-            file.name + '</strong>.<br/>' +
-            '<span style="color:var(--text3);font-size:11px;">The file may be image-only or password-protected.' +
-            ' Try exporting to PDF first.</span></p>';
-          Toast.error("No text found in " + file.name);
-          return;
+        /* ── Guard: no text extracted AND no images ── */
+        if(!note){
+          if(!text || text.length < 20){
+            if(prog) prog.innerHTML =
+              '<p style="color:var(--amber);padding:8px 0;">⚠ <strong>No text found in ' +
+              file.name + '</strong>.<br/>' +
+              '<span style="color:var(--text3);font-size:11px;">The file may be image-only or password-protected.' +
+              ' Try exporting to PDF first.</span></p>';
+            Toast.error("No text found in " + file.name);
+            return;
+          }
+          setP(55, "Sending to Groq AI…");
+          const analysis = await AIManager.analyzeText(text, profile);
+          setP(90, "Saving…");
+          note = {
+            id: "n" + Date.now(),
+            title: file.name.replace(/\.[^.]+$/, ""),
+            isImage: false, thumb: null,
+            analysis, filename: file.name,
+            created: new Date().toLocaleDateString("en-GB",{day:"2-digit",month:"short",year:"numeric"})
+          };
         }
-
-                setP(55, "Sending to Groq AI…");
-        const analysis = await AIManager.analyzeText(text, profile);
-        setP(90, "Saving…");
-        note = {
-          id: "n" + Date.now(),
-          title: file.name.replace(/\.[^.]+$/, ""),
-          isImage: false, thumb: null,
-          analysis, filename: file.name,
-          created: new Date().toLocaleDateString("en-GB",{day:"2-digit",month:"short",year:"numeric"})
-        };
 
       } else {
         /* ── PLAIN TEXT (txt, md, csv, json …): read directly ── */
