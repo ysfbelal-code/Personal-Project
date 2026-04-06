@@ -943,18 +943,12 @@ class AIManager {
     return (profile.subjects||[]).map(s=>s.name+" ("+s.proficiency+")").join(", ")||"General";
   }
 
-  // Safe minimal fallback — used only until the live fetch completes on boot.
-  // These are stable Groq models. If either is decommissioned, the live fetch
-  // will replace them automatically before the first real API call.
   static _MODEL_CHAIN = [
     "llama-3.3-70b-versatile",
     "llama-3.1-8b-instant",
     "llama3-8b-8192"
   ];
 
-  // Fetches every live model from Groq and builds a ranked chain automatically.
-  // No hardcoded preferred list — the ranking is computed from the model IDs
-  // returned by the API, so decommissioned models are never used.
   static async refreshAvailableModels() {
     const key = Store.getApiKey();
     if (!key) return;
@@ -967,25 +961,17 @@ class AIManager {
       if (!resp.ok) return;
       const data = await resp.json();
 
-      // Exclude non-chat models (audio transcription, TTS, safety classifiers,
-      // embeddings, vision-only, distil variants) — these can't do text chat.
       const SKIP = /whisper|tts|guard|embed|vision|distil|playai/i;
       const chatModels = (data.data || [])
         .map(m => m.id)
         .filter(id => !SKIP.test(id));
 
-      // Score each model by apparent capability extracted from its ID string.
-      // Higher score = more capable = preferred earlier in the chain.
       function score(id) {
         const lo = id.toLowerCase();
-        // Parameter count is the primary signal (70b >> 8b)
         const paramMatch = lo.match(/(\d+)b/);
         const params = paramMatch ? parseInt(paramMatch[1], 10) : 7;
-        // Versatile / instruct models handle long-form generation better
         const bonus = /versatile|instruct/.test(lo) ? 4 : 0;
-        // "instant" models are fast but smaller — slightly deprioritise
         const penalty = /instant/.test(lo) ? -3 : 0;
-        // Preview / experimental builds may be unstable — slight penalty
         const previewPenalty = /preview|experimental|beta/.test(lo) ? -2 : 0;
         return params + bonus + penalty + previewPenalty;
       }
@@ -1007,7 +993,6 @@ class AIManager {
     const key = Store.getApiKey();
     if(!key) throw new Error("No Groq API key. Enter it on the home screen.");
 
-    // Build ordered list: requested model first, then the rest of the chain
     const chain = [requestedModel, ...AIManager._MODEL_CHAIN.filter(m=>m!==requestedModel)];
 
     let lastError = null;
@@ -1033,14 +1018,11 @@ class AIManager {
         return data.choices[0].message.content||"";
       }
 
-      // Parse error
       const errText = await resp.text().catch(()=>""+resp.status);
       let errMsg = "Groq error "+resp.status+": "+errText;
       try{ const j=JSON.parse(errText); if(j.error&&j.error.message) errMsg=j.error.message; }catch(_){}
 
-      // Decide whether to try next model or give up immediately
       const isRateOrToken = (
-        resp.status===405 ||
         resp.status===429 ||
         /rate.limit/i.test(errMsg) ||
         /token.*limit/i.test(errMsg) ||
@@ -1053,13 +1035,15 @@ class AIManager {
 
       lastError = new Error(errMsg);
       if(!isRateOrToken || attempt === chain.length-1){
-        // Non-retryable error, or we've exhausted the fallback chain
         throw lastError;
       }
-      // Small pause before retrying the next model
       await new Promise(r=>setTimeout(r,400));
     }
     throw lastError;
+  }
+
+  static async analyzeTxt(text, profile){
+    return this.analyzeText(text, profile);
   }
 
   static async analyzeImage(base64str, profile){
@@ -1103,24 +1087,14 @@ class AIManager {
   static async analyzeText(text, profile){
     const trunc = text.slice(0, 16000) + (text.length > 16000 ? "\n\n[...content truncated]" : "");
 
-    // ── Strip extraction markers before sending to AI ─────────────────────────
-    // server.py tags bold/underline runs as [BOLD: x] / [KEY TERM: x] / [UNDERLINE: x].
-    // Converting them to clean markdown here prevents the AI from echoing those
-    // literal bracket patterns back in its output (which the renderer then has
-    // to catch as a fallback — removing the root cause is cleaner).
     const cleanedTrunc = trunc
       .replace(/\[KEY TERM:\s*([^\]]+)\]/g, "**$1**")
       .replace(/\[BOLD:\s*([^\]]+)\]/g,     "**$1**")
       .replace(/\[UNDERLINE:\s*([^\]]+)\]/g, "_$1_");
 
-    // Use cleaned text for word-count so marker tokens don't inflate the count.
     const wordCount = cleanedTrunc.trim().split(/\s+/).length;
     const isSparse  = wordCount < 300;
 
-    // ── System message — template literal preserves line breaks ──────────────
-    // Previously used .join(" ") which collapsed all rules into one run-on
-    // paragraph; the AI could not parse "NEVER use [BOLD:]" as a distinct
-    // instruction and kept outputting those markers. Template literal fixes this.
     const grade      = profile.grade      || "secondary";
     const curriculum = profile.curriculum || "curriculum";
     const sysMsg =
@@ -1143,12 +1117,9 @@ CORRECT style — write the actual facts, events, people, dates, and significanc
   BAD:  'Trade is an important aspect of Mali that students should understand.'
   GOOD: 'Mali controlled trans-Saharan gold and salt trade routes. Mansa Musa distributed so much gold on his 1324 pilgrimage that it caused inflation across North Africa.'`;
 
-    // ── User message branches on content density ──────────────────────────────
     let userMsg;
 
     if (isSparse) {
-      // File is mostly images — only headings/titles were extracted.
-      // Write complete curriculum-level notes for each topic from knowledge.
       userMsg =
 `The file below contains only headings and limited text because the main content is inside images that cannot be extracted.
 
@@ -1178,7 +1149,6 @@ Do NOT write vague or circular sentences. Write the actual facts as a teacher wo
 
 ${cleanedTrunc}`;
     } else {
-      // File has substantial text — extract and organise it.
       userMsg =
 `Write complete, exam-ready study notes from the material below.
 
@@ -1201,11 +1171,6 @@ ${cleanedTrunc}`;
     ], null, 6000);
   }
 
-  // ── analyzeMultipleImages ─────────────────────────────────────────────────
-  // Called when a .pptx has embedded picture shapes (slides = images).
-  // All images are sent to the vision model in one call so it understands
-  // the narrative arc of the whole presentation, not isolated screenshots.
-  // Capped at 10 images per call; the most content-rich are kept if more exist.
   static async analyzeMultipleImages(images, profile) {
     const subs       = this._subStr(profile);
     const grade      = profile.grade      || "secondary";
@@ -1229,14 +1194,12 @@ CORRECT: write the actual content — facts, dates, names, causes, consequences 
   BAD:  "This slide shows trade routes in Mali."
   GOOD: "Mali controlled trans-Saharan trade routes carrying gold northward and salt southward. Mansa Musa's 1324 pilgrimage flooded Cairo with so much gold it caused decade-long inflation."`;
 
-    // Cap at 10 — enough for any reasonable slide deck
     const cap     = 10;
     const sample  = images.slice(0, cap);
     const imgNote = images.length > cap
       ? ` (showing first ${cap} of ${images.length} images)`
       : ` (${images.length} slide image${images.length > 1 ? "s" : ""})`;
 
-    // Build content array: all images first, instruction last
     const content = sample.map(img => ({
       type: "image_url",
       image_url: { url: `data:${img.mime};base64,${img.base64}` }
