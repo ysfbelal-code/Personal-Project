@@ -1047,6 +1047,15 @@ class AIManager {
   }
 
   static async analyzeImage(base64str, profile){
+    try {
+      const decoded = atob(base64str);
+      const sample = decoded.slice(0, 1024);
+      const isPrintableText = /^[\x09\x0A\x0D\x20-\x7E]*$/.test(sample);
+      if (isPrintableText) {
+        return this.analyzeText(decoded, profile);
+      }
+    } catch(e) {}
+
     const subs=this._subStr(profile);
     const lines=[
       "You are Elixir AI, expert tutor for "+profile.grade+" "+profile.curriculum+" students in "+profile.region+". Subjects: "+subs+". NEVER use LaTeX dollar signs ($) or \\[ \\] for math — use plain text with ^ for powers and _ for subscripts.",
