@@ -146,7 +146,8 @@ class ElixirHandler(http.server.BaseHTTPRequestHandler):
         ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
 
         try:
-            if   ext == "pptx":              text = self._extract_pptx(raw)
+            if   ext == "txt":               text = self._extract_txt(raw)
+            elif ext == "pptx":              text = self._extract_pptx(raw)
             elif ext == "ppt":               text = self._extract_ppt(raw)
             elif ext == "docx":              text = self._extract_docx(raw)
             elif ext == "doc":               text = self._extract_doc(raw)
@@ -158,7 +159,7 @@ class ElixirHandler(http.server.BaseHTTPRequestHandler):
             else:
                 self._json_resp({"text": "", "error":
                     f"Unsupported file type '.{ext or 'unknown'}'. "
-                    "Supported: pptx, ppt, docx, doc, pdf, xlsx, xls, rtf, odt, odp, ods."})
+                    "Supported: txt, pptx, ppt, docx, doc, pdf, xlsx, xls, rtf, odt, odp, ods."})
                 return
 
             print(f"  [extract] extracted {len(text):,} chars from {filename}")
@@ -172,6 +173,14 @@ class ElixirHandler(http.server.BaseHTTPRequestHandler):
     # ════════════════════════════════════════════════════════════════════════
     # Extractors
     # ════════════════════════════════════════════════════════════════════════
+
+    # ── .txt ─────────────────────────────────────────────────────────────────
+    def _extract_txt(self, raw):
+        """Plain text file — decode with UTF-8, fall back to latin-1."""
+        try:
+            return raw.decode("utf-8", errors="replace").strip()
+        except Exception:
+            return raw.decode("latin-1", errors="replace").strip()
 
     # ── .pptx ────────────────────────────────────────────────────────────────
     def _extract_pptx(self, raw):
