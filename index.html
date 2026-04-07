@@ -1558,6 +1558,8 @@ class SpaceManager {
   static async processFile(file,sid,uid){
     /* ── Determine if the file can be read as plain text by the browser ── */
     const BINARY_EXTS = new Set([
+      // Plain text — extracted server-side via _extract_txt (utf-8/latin-1 fallback)
+      "txt",
       // Modern Office
       "pdf","docx","pptx","xlsx",
       // Legacy Office (OLE2 binary) — now fully supported
